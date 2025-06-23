@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ImageSegmenter, ImageEmbedder, FilesetResolver, ImageSegmenterResult, ImageEmbedderOptions, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision'
-import { mapState } from 'pinia'
+import { useCounterStore } from '@/stores/counter'
+import { storeToRefs } from 'pinia'
 import palettesAndClusts from '@/data/palette_clust.json'
 import imgMetaData from '@/data/metadata_processed.json'
 import imgEmbeddings from '@/data/image_embeddings.json'
@@ -13,6 +15,8 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 
 // console.log(BokehPass)
+
+
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -32,6 +36,24 @@ let stream: MediaStream | null = null
 let lastTriggerTime = 0;
 const INTERVAL = 2000; // ms
 let lastVideoTime = -1
+
+// router shit
+// ----------------------------------------------------------------------
+// const router = useRouter()
+// const shouldRedirect = ref(false)
+
+// // Watch the boolean ref
+// watch(shouldRedirect, (newVal) => {
+//   if (newVal) {
+//     router.push('/selection') // or any other route path
+//   }
+// })
+
+// Simulate flipping the boolean after 3 seconds
+// setTimeout(() => {
+//   shouldRedirect.value = true
+// }, 3000)
+// ----------------------------------------------------------------------
 
 
 const createGestureRecognizer = async () => {
@@ -629,10 +651,6 @@ button {
   border-radius: 4px;
   border: 1px solid #ccc;
 }
-
-
-
-
 
 
 #threeCanvas {

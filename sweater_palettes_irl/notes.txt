@@ -1,0 +1,55 @@
+State or processes that needs to be carried 
+
+- All jsons
+- ML models
+- user color palette
+- user image embedding
+- Top results of comparisons
+- hand position 
+- current scene to show 
+
+
+
+
+App level 
+
+<template>
+  IntroView
+  SelectionView
+  InClusterView
+  ClusterView
+</template>
+
+
+
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router'
+import SceneOne from '../views/SceneOne.vue'
+import SceneTwo from '../views/SceneTwo.vue'
+import SceneThree from '../views/SceneThree.vue'
+
+const routes = [
+  { path: '/', redirect: '/scene1' },
+  { path: '/scene1', component: SceneOne },
+  { path: '/scene2', component: SceneTwo },
+  { path: '/scene3', component: SceneThree }
+]
+
+export const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+
+
+// in main.ts
+import { createApp } from 'vue'
+import App from './App.vue'
+import { router } from './router'
+
+createApp(App).use(router).mount('#app')
+
+
+
+Flow of Making scenes 
+
