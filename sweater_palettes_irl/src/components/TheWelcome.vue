@@ -540,7 +540,7 @@ const predictWebcam = async () => {
           if(curClass != 'Victory') {
             // Check if results are ready 
             if(searchResultsReady.value && startGestureInFrame.value) {
-              // startTransitionToNextScene.value = true
+              startTransitionToNextScene.value = true
             }
 
 
@@ -716,13 +716,11 @@ const predictWebcam = async () => {
       let firstFilt = 'cosine'
       let secondFilt = firstFilt == 'cosine' ? 'color' : 'cosine'
       let finalImages = getFinalImages(distMap, firstFilt, secondFilt, 30)
-      if(!searchResultsReady.value) {
-        searchResults.value.push(finalImages)
-      }
-
+      searchResults.value.push(finalImages)
       if (searchResults.value.length > searchResultsReadyThreshold) {
         searchResultsReady.value = true
         finalUserPalette.value = userPaletteRgb.value
+        searchResults.value.pop()
       }
 
 
