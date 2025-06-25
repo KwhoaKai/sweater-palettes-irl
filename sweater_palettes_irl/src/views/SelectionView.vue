@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import QRCode from 'qrcode'
 import { ImageSegmenter, ImageEmbedder, FilesetResolver, ImageSegmenterResult, ImageEmbedderOptions, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision'
 import { useCounterStore } from '@/stores/counter'
 import { storeToRefs } from 'pinia'
@@ -46,6 +47,7 @@ import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const maskCanvasRef = ref<HTMLCanvasElement | null>(null)
+const qrDataUrl = ref('')
 
 // Take the samples, get the most popular cluster out of all top 3 assignments 
 // Then take that image, go to that image's cluster, and show images in descending order of 
@@ -109,6 +111,7 @@ let showMetadata = ref(false)
 
 
 const initDataFormatting = () => {
+  
   if (!searchResults.value || searchResults.value.length === 0) return 
   const counts = {}
   searchResults.value.forEach((searchResult) => {
@@ -144,6 +147,22 @@ const initDataFormatting = () => {
     'cluster':resultsArr[0]?.cluster,
     'listingData': topListingMetadata
   }
+
+
+  // Generate QR code for top listing
+  let productUrl = `https://archivestore-official-ec.myshopify.com/products/${topProdId}`
+
+  QRCode.toDataURL(productUrl, { width: 200 })
+    .then(url => qrDataUrl.value = url)
+    .catch(err => console.error(err))
+
+
+
+
+
+
+
+
   console.log('topListing', topListing.value)
 }
 
@@ -521,12 +540,15 @@ const displaySeasonYear = computed(() => {
             <v-col id="titleDiv" :md="5" :lg="4" class="mr-auto">
               <h1>{{ topListing?.listingData?.brand }}</h1>
               <h1>{{ displaySeasonYear }}</h1> 
+              <!-- <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" style="transform: translate(-8%,11%);"/>  -->
+              <img id='qrCodeImg' v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code"/> 
             </v-col>
             <v-col id='listingInfoDiv' :md="5" :lg="6" class="ml-auto pad-right-2">
               <span>
                 <h1>{{ topListing?.listingData?.item_name }}</h1>
                 <h1>{{ topListing?.listingData?.item_price }}</h1>
                 <h1>${{ topListing?.listingData?.item_price_usd_int }}</h1>
+                
               </span>
               <p style="white-space: pre-line">{{ topListing?.listingData?.item_description }}</p>
               </v-col>
@@ -539,7 +561,14 @@ const displaySeasonYear = computed(() => {
   </main>
 </template>
 
+
+
 <style scoped>
+#qrCodeImg {
+  position: fixed;
+  transform: translate(-8%,725px);
+}
+
 #threeCanvas {
   position: fixed;
   padding: 0;
