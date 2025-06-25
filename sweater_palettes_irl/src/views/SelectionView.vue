@@ -71,14 +71,13 @@ const {
   areTasksInitialized
 } = useIntroStore()
 
-console.log('selectionview', searchResults.value)
+//console.log('selectionview', searchResults.value)
 
 const router = useRouter()
 let animReqID = null
 let initDataready = ref(false)
-
-
 // THREEjs stuff
+let showInitView = ref(false)
 let threeReady = ref(false)
 // let threeReady = ref(true)
 let curScene = ref('SHOW_TOP_RESULT') // default scene
@@ -94,11 +93,19 @@ let time = null
 let delta = null
 let composer = null
 let renderer = null
+
 let initThreeDone = false
 // let topListing = {'key':'0_jacket-outerwear_10208-241226-0071_1024x1024_0.jpg'}
-let topListing = null;
+let topListing = ref(null)
 
+// Initial scene animations 
 let initSceneInstances = null
+let initInstanceAnim1 = false
+let initInstanceAnim2 = false
+let initInstaniceAnim1ZPosTarget = -2.7
+let initInstaniceAnim1ZPosInit = 0
+let showMetadata = ref(false)
+
 
 
 const initDataFormatting = () => {
@@ -123,10 +130,21 @@ const initDataFormatting = () => {
     cluster: data.cluster
   }))
   resultsArr.sort((a, b) => b.count - a.count)
-  topListing = {
-    'key': resultsArr[0]?.key, 
-    'cluster':resultsArr[0]?.cluster
+  let topKey = resultsArr[0]?.key
+  let topProdId = topKey.split('_')[2]
+  let topListingMetadataIdx = imgMetaData && Array.isArray(imgMetaData)
+    ? imgMetaData.findIndex(obj => obj.product_id === topProdId)
+    : -1
+
+  let topListingMetadata = topListingMetadataIdx !== -1
+    ? imgMetaData[topListingMetadataIdx]
+    : {}
+  topListing.value = {
+    'key': topKey, 
+    'cluster':resultsArr[0]?.cluster,
+    'listingData': topListingMetadata
   }
+  console.log('topListing', topListing.value)
 }
 
 
@@ -153,10 +171,12 @@ const initPostprocessing = () => {
   postprocessing.composer = composer;
   postprocessing.bokeh = bokehPass;
   threeReady.value = true
+  showInitView.value = true
+  // console.log(scene, 'SCENE')
 }
 
 const makeInstance = function (geom, img, data, x, y, z, xRotDir) {
-  console.log(renderer, threeReady.value)
+  // console.log(renderer, threeReady.value)
   if(!renderer ) return 
   console.log('makeInstance', img, data)
 
@@ -177,15 +197,20 @@ const makeInstance = function (geom, img, data, x, y, z, xRotDir) {
   obj.targetYRot = initYRot; 
   obj.initXPos = x;
   obj.targetXPos = x;
+  obj.targetZPos = z;
   obj.xRotDir = xRotDir;
   obj.position.x = x;
-  obj.position.y = 1;
+  obj.position.y = y;
   obj.position.z = z;
   obj.rotation.y = initYRot;
   // add texture loader as property of object
   obj.texture = texture;
   // sweaters.add(obj);
   return obj;
+}
+
+const setInstancePositionTarget = (instance, axis, target) => {
+  instance[axis]=target
 }
 
 const initThree = () => {
@@ -244,6 +269,7 @@ const initThree = () => {
   //you could adapt the code so that you can 'zoom' by changing the z value in camera.position in a mousewheel event..
   let cameraDistance = 1;
   camera.position.z = cameraDistance;
+  camera.position.y = 2;
   orbit.add(camera);
   scene.add(orbit);
   // Camera follows mouse movement, handle image hovering in 3d view 
@@ -276,6 +302,7 @@ const initThree = () => {
   gridHelper.name = "gridHelper";
   // gridHelper.postition.z = -size/2;
   scene.add(gridHelper)
+  
 
   // Create a box geometry (1x1x1)
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -305,7 +332,7 @@ const initThree = () => {
   // Assemble palette, cluster, and embedding data for top listing 
 
 
-  let topProdId = topListing.key.split('_')[2];
+  let topProdId = topListing.value.key.split('_')[2];
   let topListingMetadataIdx = imgMetaData && Array.isArray(imgMetaData)
     ? imgMetaData.findIndex(obj => obj.product_id === topProdId)
     : -1
@@ -315,13 +342,13 @@ const initThree = () => {
     : {}
 
 
-  console.log(topListingMetadata)
+  // console.log(topListingMetadata)
 
   const data = {
-    'key': topListing.key,
-    'cluster': palettesAndClusts[topListing.key]['cluster'],
-    'palette': palettesAndClusts[topListing.key]['palette'],
-    'embedding': imgEmbeddings[topListing.key],
+    'key': topListing.value.key,
+    'cluster': palettesAndClusts[topListing.value.key]['cluster'],
+    'palette': palettesAndClusts[topListing.value.key]['palette'],
+    'embedding': imgEmbeddings[topListing.value.key],
     'metadata': topListingMetadata
   }
 
@@ -343,7 +370,17 @@ const initThree = () => {
   const source = `/src/assets/images/${key}`
   // let xRotDir = leftRight;
   let xRotDir = 0;
-  let initPhotoInstance = makeInstance(boxgeom, source, data,0,0,0, xRotDir)
+  // targetX = -1
+  // let targetZPos = -2.7
+  let initPhotoInstance = makeInstance(boxgeom, source, data,
+                                        0,
+                                        2,
+                                        initInstaniceAnim1ZPosInit, 
+                                        xRotDir)
+  setInstancePositionTarget(initPhotoInstance, 'targetZPos', initInstaniceAnim1ZPosTarget)
+  initInstanceAnim1 = true
+  // console.log(initPhotoInstance.targetZPos)
+  initPhotoInstance.name = 'topListing';
   initSceneInstances.add(initPhotoInstance)
   scene.add(initSceneInstances);
   initPostprocessing()
@@ -360,10 +397,44 @@ const initThree = () => {
  *  @param {Array} objArr    Array of THREE.js Object3Ds in gallery to update 
  */
 const updateTopResultScene = () => {
-
-  // Check for object intersection if in GALLERY_VIEW 
   const speed = 0.05;
-  console.log(scene.camera, scene.getObjectByName('topListing'))
+  // console.log(initSceneInstances, 'initSceneInstances')
+  if(initSceneInstances != null || initSceneInstances.children.length > 0) {
+    initSceneInstances.children.forEach((obj) => {
+        // const key = obj.userData.data.key;
+        let curYRot = obj.rotation.y
+        let curXPos = obj.position.x
+        let curZPos = obj.position.z
+        let targetYRot = obj.targetYRot
+        let targetXPos = obj.targetXPos
+        let targetZPos = obj.targetZPos
+        // Update current rotation w/lerp() if not close to target
+        const lerp = (x, y, a) => x * (1 - a) + y * a;
+        if(initInstanceAnim1 && obj.name === 'topListing') {
+          if (Math.abs(targetZPos - curZPos) < 0.08 && initInstanceAnim1) {
+            obj.position.z = targetZPos
+            obj.targetXPos = -2.3
+            obj.targetYRot = 0.2;
+            initInstanceAnim1 = false
+            initInstanceAnim2 = true
+            showMetadata.value = true
+          }
+          if (Math.abs(targetXPos - curXPos) < 0.01 && initInstanceAnim2) {
+            obj.position.x = targetXPos
+            initInstanceAnim2 = false;
+          }
+        } 
+        
+        const newYRot = lerp(curYRot, targetYRot, speed) ;
+        const newXPos = lerp(curXPos, targetXPos, speed);
+        const newZPos = lerp(curZPos, targetZPos, speed);
+        // console.log(obj.position.z, targetZPos, 'init and target z')
+        obj.rotation.y = newYRot;
+        obj.position.x = newXPos;
+        obj.position.z = newZPos;
+        
+      })
+  }
 }
 /**
  * Handles updates to 3d scene at every frame of animate()
@@ -409,71 +480,61 @@ const animate = () => {
 
 
 onMounted(() => {
-  
-  // const stream = stream.value
-  // if (videoRef.value && stream) {
-  //   videoRef.value.srcObject = stream
-  //   videoRef.value.play()
-  // }
-  // console.log("stream")
-
+  console.log('before datafomratting')
   initDataFormatting()
+  console.log('after datafor', topListing.value)
   initThree()
   animate()
-
-    // setupMouse();
-    // initThree();
-    // window.addEventListener("resize", handleResize);
-    // showGif = true;
-    // let interval = 700;
-    // setTimeout(
-    //   function () {
-    //     show1 = true;
-    //   }.bind(this),
-    //   interval
-    // );
-
-    // setTimeout(
-    //   function () {
-    //     show2 = true;
-    //   }.bind(this),
-    //   interval * 2
-    // );
-
-    // setTimeout(
-    //   function () {
-    //     show3 = true;
-    //   }.bind(this),
-    //   interval * 3
-    // );
-
 })
 
 onBeforeUnmount(() => {
   // stopWebcam()
 })
 
+// Year text display
+const displaySeasonYear = computed(() => {
+  if (!topListing.value) return '';
+  const listingCur = topListing.value?.listingData
+  if (!listingCur) return '';
+
+  let finalStr = ''
+  if(listingCur.year) {
+    finalStr += `${listingCur.year} `
+  } else if(listingCur.years_ago) {
+    finalStr += listingCur.years_ago.toString()
+  }
+  if(listingCur.season_code) {
+    finalStr += listingCur.season_code
+  }
+  return finalStr;
+});
+
 
 </script>
-
 <template>
   <main>
-    <!-- <transition name='fadeEaseOut'> -->
-      <v-container fluid id="containerDiv" class="App">
-        <v-row class="pad-bot-2">
-          <v-col id="titleDiv" :md="5" :lg="4" class="mr-auto">
-            <h1 class="titleText">AAAAAAHHHHHHHH</h1>
-            <h1 class="titleText">AAAAAAHHHHHHHHHHHHHHH</h1>
-            <h1 class="titleText">AAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHH</h1>
-          </v-col>
-        </v-row>
+    <transition name='fadeEaseOut'>
+      <v-container v-show="showInitView" fluid id="containerDiv" class="App">
+
+        <transition name='fadeEaseOut'>
+          <v-row v-show='showMetadata' id='topInfoRow' class="pad-bot-2">
+            <v-col id="titleDiv" :md="5" :lg="4" class="mr-auto">
+              <h1>{{ topListing?.listingData?.brand }}</h1>
+              <h1>{{ displaySeasonYear }}</h1> 
+            </v-col>
+            <v-col id='listingInfoDiv' :md="5" :lg="6" class="ml-auto pad-right-2">
+              <span>
+                <h1>{{ topListing?.listingData?.item_name }}</h1>
+                <h1>{{ topListing?.listingData?.item_price }}</h1>
+                <h1>${{ topListing?.listingData?.item_price_usd_int }}</h1>
+              </span>
+              <p style="white-space: pre-line">{{ topListing?.listingData?.item_description }}</p>
+              </v-col>
+          </v-row>
+        </transition>
         <canvas id="threeCanvas"></canvas>
       </v-container>
-    <!-- </transition> -->
-
-
-
-
+    </transition>
     <!-- <video ref="videoRef" autoplay playsinline></video> -->
   </main>
 </template>
@@ -509,6 +570,9 @@ onBeforeUnmount(() => {
   opacity: 1;
 }
 
+.pad-right-2 {
+  padding-right: 2em;
+}
 
 #containerDiv {
   height: 100%;
@@ -529,6 +593,18 @@ body {
   max-width: 1350px;
   margin: auto;
   /* overflow-y: hidden; */
+}
+
+#topInfoRow {
+  padding-top: 1em;
+  padding-bottom: 1em;
+  padding-right: 1em;
+  padding-left: 1em;
+}
+
+#listingInfoDiv {
+  padding-right: 10rem;
+  padding-left: 8rem
 }
 
 #app {

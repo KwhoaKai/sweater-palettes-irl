@@ -927,10 +927,10 @@ onBeforeUnmount(() => {
   <transition name="fadeEaseOut">
   <v-container v-if="!startTransitionToNextScene" fluid id="containerDiv" class="App">
     <v-row class="pad-bot-2">
-      <v-col id="titleDiv" :md="5" :lg="4" :class="{ 'alpha-05': startGestureInFrame}">
+      <v-col id="titleDiv" :md="5" :lg="6" :class="{ 'alpha-05': startGestureInFrame}">
         <!-- <h1 class="titleText">ARCHIVE</h1>
         <h1 class="titleText">PALETTESS</h1> -->
-        <h1 class="titleText">Real-time Image Segmentation and Encoding On Clothing</h1>
+        <h1 class="titleText">Real-time Similarity Search via Image Segmentation and Encoding</h1>
         <br>
         <!-- <h2>Archive Store JP - Interactive Index</h2> -->
         <!-- <h1 class="titleText">PALETTESS</h1> -->
@@ -1067,14 +1067,14 @@ onBeforeUnmount(() => {
   gap: 20px;
 
   /* transform: translate(3%, -20%); */
-  transform: translate(3%, -17%) scale(0.95);
+  transform: translate(3%, -14.5%) scale(0.95);
   opacity: 0;
   z-index: -1;
   transition: transform 1s cubic-bezier(0.01, 0.95, 0.5, 0.96), opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 #photoDiv.scale-1 {
-  transform: translate(3%, -17%) scale(1);
+  transform: translate(3%, -14.5%) scale(1);
   opacity: 1;
   z-index: -1; /* bump z-index so it appears */
 }
