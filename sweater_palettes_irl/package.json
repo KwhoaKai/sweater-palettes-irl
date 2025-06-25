@@ -20,9 +20,11 @@
     "colorthief": "^2.6.0",
     "node-vibrant": "^4.0.3",
     "pinia": "^3.0.1",
+    "qrcode": "^1.5.4",
     "three": "^0.177.0",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "vuetify": "^3.8.10"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.1",
