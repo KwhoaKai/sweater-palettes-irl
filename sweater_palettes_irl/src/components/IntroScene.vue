@@ -5,6 +5,8 @@ import { ImageSegmenter, ImageEmbedder, FilesetResolver, ImageSegmenterResult, I
 import { useCounterStore } from '@/stores/counter'
 import { storeToRefs } from 'pinia'
 import { useIntroStore } from '@/stores/useIntroStore'
+import { getPalDist } from "@/utils/imageProcessingUtils"
+import { dequantizeEmbedding, cosineSimilarity } from "@/utils/embeddingProcessingUtils"
 import palettesAndClusts from '@/data/palette_clust.json'
 import imgMetaData from '@/data/metadata_processed.json'
 import personOutline from '@/assets/person_outline.svg';
@@ -64,7 +66,7 @@ const searchResultsReadyThreshold = 27
 let userInFrameFrameBuffer = []
 const showStartGesture = ref(false)
 const COLLECTION_DURATION_MS = 1000
-let animReqID = null
+let animReqID: number | null = null;
 let startGestureInFrame = ref(false)
 
 
@@ -207,104 +209,13 @@ function imageDataToImageElement(imageData: ImageData): HTMLImageElement {
   return img;
 }
 
-function shouldRun(interval, lastRunTime) {
+function shouldRun(interval: any, lastRunTime) {
   const now = performance.now();
   // console.log(now - lastRunTime)
   if (now - lastRunTime >= interval) {
     return [true, now];
   }
   return [false, lastRunTime];
-}
-
-function cosineSimilarity(A, B) {
-  if (A.length !== B.length) {
-    throw new Error("Vectors must be the same length");
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < A.length; i++) {
-    dotProduct += A[i] * B[i];
-    normA += A[i] * A[i];
-    normB += B[i] * B[i];
-  }
-
-  normA = Math.sqrt(normA);
-  normB = Math.sqrt(normB);
-
-  if (normA === 0 || normB === 0) {
-    return 0; // or handle zero-vector case as needed
-  }
-
-  return dotProduct / (normA * normB);
-}
-
-
-/**
- * Returns minimum CIEDE200 color difference between col and all colors in pal
- * @param {obj} col    Should have fields r,g,b
- * @param {Array} pal  Should be array of objects with fields r,g,b
- */
-const getMinDist = function(col, pal) {
-
-  // let labCol = diff.rgb_to_lab(col);
-  let minColDist = Infinity;
-
-  // Iterate through colors and save minimum distance
-  for (let i = 0; i < pal.length; i++) {
-    // let palColLab = diff.rgb_to_lab(pal[i]);
-    let colDiff = diff.diff(pal[i], col);
-    minColDist = Math.min(colDiff, minColDist);
-  }
-  return minColDist;
-}
-
-
-/**
- * Return MICDP distance between two color palettes.
- * Palettes should have the same number of colors.
- * @param {Array} pal1    Should be array of objects with fields r,g,b
- * @param {Array} pal2    Should be array of objects with fields r,g,b
- */
-const getPalDist = function(pal1, pal2) {
-  // console.log(pal1, pal2)
-  const numCol = pal1.length
-  let pal1MinDists = []
-  let pal2MinDists = []
-
-  // Get minimum distance for each color in both palettes
-  for (let i = 0; i < numCol; i++) {
-    let pal1Col = pal1[i]
-    let minDist1 = getMinDist(pal1Col, pal2)
-    pal1MinDists.push(minDist1);
-
-    let pal2Col = pal1[2]
-    let minDist2 = getMinDist(pal2Col, pal1);
-    pal2MinDists.push(minDist2);
-  }
-  let distSumPal1 = pal1MinDists.reduce((a, b) => {
-    return a + b;
-  });
-
-  let distSumPal2 = pal2MinDists.reduce((a, b) => {
-    return a + b;
-  });
-
-  // Calculate MIDCP
-  let distAvgPal1 = distSumPal1 / numCol;
-  let distAvgPal2 = distSumPal2 / numCol;
-  let grandAvg = (distAvgPal1 + distAvgPal2) / 2;
-  return grandAvg;
-}
-
-function quantizeEmbedding(embedding) {
-  return embedding.map(x => Math.round((x + 1) * 127.5)); // to uint8
-}
-
-function dequantizeEmbedding(qEmbedding) {
-  return qEmbedding.map(x => (x / 127.5) - 1);
 }
 
 const interactionLoop = async () => {
@@ -401,32 +312,37 @@ const interactionLoop = async () => {
     ctx.putImageData(imageData, 0, 0)
     ctx.save()
 
-    if(userInFrame.value && !showStartGesture.value) {
-      // console.log('starting timer')
-      // collectingStarted = true
-      setTimeout(() => { 
-        const totalFrames = userInFrameFrameBuffer.length
-        const maskFrames = userInFrameFrameBuffer.filter(x => x).length
 
-        if (totalFrames > 0) {
-          // console.log(maskFrames / totalFrames);
-          if(maskFrames / totalFrames > 0.85) {
-            // userInFrameFrameBuffer = []
-            showStartGesture.value = true
-          }
-          showStartGesture.value = false
-        } else {
-          showStartGesture.value = false
-        }
-        // collectingStarted = false
-        // console.log(totalFrames)
-      }, COLLECTION_DURATION_MS); // <-- delay in milliseconds (2 seconds)
-    }
-    // if(userInFrame.value && collectingStarted) {
-    if(userInFrame.value) {
-      // console.log('pushing')
-      userInFrameFrameBuffer.push(uniqueMaskLabels.has(4))
-    }
+    // Start gesture stuff, dumb 
+
+    // if(userInFrame.value && !showStartGesture.value) {
+    //   // console.log('starting timer')
+    //   // collectingStarted = true
+    //   setTimeout(() => { 
+    //     const totalFrames = userInFrameFrameBuffer.length
+    //     const maskFrames = userInFrameFrameBuffer.filter(x => x).length
+
+    //     if (totalFrames > 0) {
+    //       // console.log(maskFrames / totalFrames);
+    //       if(maskFrames / totalFrames > 0.85) {
+    //         // userInFrameFrameBuffer = []
+    //         showStartGesture.value = true
+    //       }
+    //       showStartGesture.value = false
+    //     } else {
+    //       showStartGesture.value = false
+    //     }
+    //     // collectingStarted = false
+    //     // console.log(totalFrames)
+    //   }, COLLECTION_DURATION_MS); // <-- delay in milliseconds (2 seconds)
+    // }
+    // // if(userInFrame.value && collectingStarted) {
+    // if(userInFrame.value) {
+    //   // console.log(userInFrameFrameBuffer.length, 'wtf lol')
+    //   // console.log('pushing')
+    //   // console.log('uniquemaskalbels', uniqueMaskLabels.has(4))
+    //   userInFrameFrameBuffer.push(uniqueMaskLabels.has(4))
+    // }
 
     // Clone masked imageData, used to create a second image without background
     // const clonedData = new Uint8ClampedArray(imageData.data); // deep copy
@@ -576,6 +492,7 @@ const interactionLoop = async () => {
             const deQuantizedEmbedding = dequantizeEmbedding(imgEmbeddings[key]); // array of floats
             // console.log(userVideoEmbeddingFloatArr, deQuantizedEmbedding);
             const similarityCosine = cosineSimilarity(userVideoEmbeddingFloatArr, deQuantizedEmbedding)
+            // console.log('similarityCOsine',userVideoEmbeddingFloatArr, deQuantizedEmbedding)
             let imgPalette = palettesAndClusts[key]?.palette ?? null
             let parsedImgPalette = JSON.parse(imgPalette)
   
@@ -594,6 +511,7 @@ const interactionLoop = async () => {
             const similarityColor = (userPaletteFormatted && imgPaletteFormatted)
               ? getPalDist(userPaletteFormatted, imgPaletteFormatted)
               : null;
+            console.log('similarityColor', userPaletteFormatted, imgPaletteFormatted)
   
             if (imgPalette == null) {
               palCtBad += 1

@@ -8,7 +8,7 @@ export const useIntroStore = defineStore('intro', () => {
   const searchResults = ref([])
   const clusterId = ref(null)
   const topImage = ref(null)
-  const curEmbedding = ref({})
+  const curCamFrameEmbedding = ref({})
   const finalUserPalette = ref([])
 
   // Non-reactive storage for MediaPipe tasks
@@ -73,7 +73,7 @@ export const useIntroStore = defineStore('intro', () => {
   return { 
     stream, 
     camEnabled, 
-    curEmbedding,
+    curCamFrameEmbedding,
     finalUserPalette,
     searchResults, 
     clusterId, 

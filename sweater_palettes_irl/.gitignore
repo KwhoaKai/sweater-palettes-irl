@@ -26,6 +26,6 @@ coverage
 *.njsproj
 *.sln
 *.sw?
-
+TODO.md
 *.tsbuildinfo
 *.jpg
