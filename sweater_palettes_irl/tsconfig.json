@@ -1,14 +1,30 @@
 {
   "files": [],
   "references": [
-    {
-      "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.vitest.json"
-    }
-  ]
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.vitest.json" }
+  ],
+  "compilerOptions": {
+    "strict": true,
+
+    "skipLibCheck": true,                // Don’t type-check node_modules
+    "useUnknownInCatchVariables": false, // Catch variables default to "any"
+
+    "noUnusedLocals": false,             // Don’t error on unused locals
+    "noUnusedParameters": false,         // Don’t error on unused params
+    "allowJs": true,                     // Allow interop with plain .js files
+    "checkJs": false,                    // Don’t type-check JS files
+    "isolatedModules": true,             // Needed for Vite/HMR
+
+    // Module resolution
+    "moduleResolution": "bundler",       // Works better with Vite
+    "module": "ESNext",
+    "target": "ESNext",
+    "jsx": "preserve",                   // For Vue’s JSX/TSX if you use it
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "typeRoots": ["./types", "./node_modules/@types"]
+  },
 }

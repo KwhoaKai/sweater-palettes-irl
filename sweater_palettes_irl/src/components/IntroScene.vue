@@ -11,20 +11,15 @@ import personOutline from '@/assets/person_outline.svg';
 import imgEmbeddings from '@/data/image_embeddings.json'
 import * as diff from "color-diff"
 import { Vibrant } from "node-vibrant/browser"
-import * as THREE from "three";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
-import { en } from 'vuetify/locale'
 
 const {
   stream,
-  enabled,
+  camEnabled,
   searchResults,
   clusterId,
   topImage,
   finalUserPalette,
-  curEmbedding
+  curCamFrameEmbedding
 } = storeToRefs(useIntroStore())
 
 const { 
@@ -38,13 +33,13 @@ const {
   getImageSegmenter,
 } = useIntroStore()
 
-console.log(enabled.value, ' intro store ')
+console.log(camEnabled.value, ' intro store ')
 // console.log(introStore.gestureRecognizer, 'gesture recognizer')
 const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const maskCanvasRef = ref<HTMLCanvasElement | null>(null)
 const countsData = ref({})
-// const curEmbedding = ref({})
+// const curCamFrameEmbedding = ref({})
 const router = useRouter()
 const distMapUse = ref({})
 const userPaletteRgb = ref([])
@@ -69,60 +64,9 @@ const searchResultsReadyThreshold = 27
 let userInFrameFrameBuffer = []
 const showStartGesture = ref(false)
 const COLLECTION_DURATION_MS = 1000
-
 let animReqID = null
-
-
-// THREEjs stuff
-let animateStarted = false
-let threeReady = false
-let scene = null
-let postprocessing = {}
-let bgCol = null
-let camera = null
-let raycaster = null
-let mouse3d = null
-let mesh = null
-let orbit = null
-let clock = null
-let time = null
-let delta = null
-let sweaters = null
-let composer = null
 let startGestureInFrame = ref(false)
-let renderer = null
-let initThreeDone = false
 
-
-
-// router shit
-// ----------------------------------------------------------------------
-// const router = useRouter()
-// const shouldRedirect = ref(false)
-
-// // Watch the boolean ref
-// watch(shouldRedirect, (newVal) => {
-//   if (newVal) {
-//     router.push('/selection') // or any other route path
-//   }
-// })
-
-// Simulate flipping the boolean after 3 seconds
-// setTimeout(() => {
-//   shouldRedirect.value = true
-// }, 3000)
-// ----------------------------------------------------------------------
-
-// const clearUserInFrameCount = () => {
-//   userInFrameFrameBuffer = []
-// }
-
-// const startCollectingFrames = () => {
-//   // collecting.value = true;
-//   frameBuffer.value = [];
-
-  
-// }
 
 watch(startTransitionToNextScene, (newVal) => {
   if (newVal) {
@@ -183,39 +127,7 @@ const setupSegmenter = async () => {
 }
 
 const animate = () => {
-  predictWebcam()
-  // Only run animation loop if canvas is shown 
-  // if(this.currentView.GALLERY_VIEW) {
-    // required if controls.enableDamping or controls.autoRotate are set to true
-    // this.renderer.render(this.scene, this.camera); 
-    // const animReqID = requestAnimationFrame(animate)
-    // console.log
-    // this.updateThree();
-    if(threeReady) {
-      // console.log(composer, 'compser')
-      // console.log(camera, 'fuck')
-      // console.log(scene, ' SCENE')
-      // composer.renderer.render();
-      // composer.render()
-      const RANGE = 0.09;
-      const SCALE = 0.1;
-      const Z_SCROLL = 0.004;
-      const Z_STOP_MULT = .5;
-      const Z_MOVE = Z_SCROLL;
-      let blueBox = scene.getObjectByName('blueBox')
-      // console.log(blueBox)
-      // console.log('inanimate')
-      blueBox.rotation.y += .1
-    }
-
-    // this.camera.position.z -= Z_SCROLL;
-    // this.mesh.position.z -= Z_MOVE;
-    // this.orbit.position.z -= Z_MOVE;
-    // Idle bob object that camera is attached to
-    // this.orbit.position.x = Math.cos(this.tick) * range;
-    // this.orbit.position.y = Math.sin(this.tick) * range;
-    // this.tick += 0.01;
-  // } 
+  interactionLoop()
   animReqID = requestAnimationFrame(animate)
 }
 
@@ -226,7 +138,7 @@ const startWebcam = async () => {
     // stream = await navigator.mediaDevices.getUserMedia({ video: true })
     stream.value = await start()
     videoRef.value.srcObject = stream.value
-    enabled.value = true
+    camEnabled.value = true
     webcamButtonText.value = 'DISABLE WEBCAM'
 
     videoRef.value.addEventListener('loadedmetadata', () => {
@@ -246,12 +158,12 @@ const startWebcam = async () => {
 const stopWebcam = () => {
   stream.value?.getTracks().forEach((track) => track.stop())
   stream.value = null
-  enabled.value = false
+  camEnabled.value = false
   webcamButtonText.value = 'ENABLE WEBCAM'
 }
 
 const toggleWebcam = async () => {
-  if (enabled.value) {
+  if (camEnabled.value) {
     stopWebcam()
     if(animReqID !== null) {
       cancelAnimationFrame(animReqID)
@@ -395,12 +307,12 @@ function dequantizeEmbedding(qEmbedding) {
   return qEmbedding.map(x => (x / 127.5) - 1);
 }
 
-const predictWebcam = async () => {
+const interactionLoop = async () => {
   const imageSegmenter = getImageSegmenter()
   const gestureRecognizer = getGestureRecognizer()
   const imageEmbedder = getImageEmbedder()
   // console.log(imageSegmenter, gestureRecognizer, imageEmbedder)
-  if (!enabled.value || !videoRef.value || !canvasRef.value || !maskCanvasRef.value || !imageSegmenter) return
+  if (!camEnabled.value || !videoRef.value || !canvasRef.value || !maskCanvasRef.value || !imageSegmenter) return
 
   const video = videoRef.value
   const canvas = canvasRef.value
@@ -642,7 +554,7 @@ const predictWebcam = async () => {
     // Calculate cosine similarity
     const userVideoEmbedding = await imageEmbedder.embed(imageData)
     const userVideoEmbeddingFloatArr = userVideoEmbedding.embeddings[0].floatEmbedding
-    curEmbedding.value = userVideoEmbedding
+    curCamFrameEmbedding.value = userVideoEmbedding
     const imgKeys = Object.keys(imgEmbeddings)
     if(shouldTrigger && startGestureInFrame.value) {
       // Calculate palette and embedding similarities
@@ -702,13 +614,13 @@ const predictWebcam = async () => {
         let filteredDistMap = imageDict.filter(item => item.similarityColor != null)
         let secondFilt = firstSort == 'cosine' ? 'color' : 'cosine'
         let firstSortDists = firstSort == 'cosine'
-        ? filteredDistMap.sort((a, b) => a.similarityCosine - b.similarityCosine)
-        : filteredDistMap.sort((a, b) => a.similarityColor - b.similarityColor)
+        ? filteredDistMap.sort((a, b) => b.similarityCosine - a.similarityCosine)
+        : filteredDistMap.sort((a, b) => b.similarityColor - a.similarityColor)
         
         let limitedDists = filteredDistMap.slice(0, 50)
         let limitedSort = firstFilt == 'cosine'
-        ? limitedDists.sort((a, b) => a.similarityColor - b.similarityColor)
-        : limitedDists.sort((a, b) => a.similarityCosine - b.similarityCosine)
+        ? limitedDists.sort((a, b) => b.similarityColor - a.similarityColor)
+        : limitedDists.sort((a, b) => b.similarityCosine - a.similarityCosine)
   
         return limitedDists.slice(0, nResults)
       }
@@ -770,152 +682,12 @@ const predictWebcam = async () => {
 
     }
   } catch (e) {
-    console.warn('predictWebcam() failed: ', e)
+    console.warn('interactionLoop() failed: ', e)
   }
-}
-
-const initPostprocessing = () => {
-
-  let width = window.innerWidth;
-  let height = window.innerHeight;
-
-  const renderPass = new RenderPass(scene, camera)
-  const bokehPass = new BokehPass(scene, camera, {
-    focus: 1.0,
-    aperture: 0.00003,
-    maxblur: 0.01,
-    width: width,
-    height: height,
-  });
-
-  const composerUse = new EffectComposer(renderer)
-  composer = composerUse
-  // console.log(composer)
-  composer.addPass(renderPass);
-  composer.addPass(bokehPass);
-
-  postprocessing.composer = composer;
-  postprocessing.bokeh = bokehPass;
-  threeReady = true
-}
-
-const initThree = () => {
-  const canvas = document.getElementById("threeCanvas")
-  let width = window.innerWidth
-  let height = window.innerHeight
-  canvas.width = width
-  canvas.height = height
-  scene = new THREE.Scene()
-  const bgCol = new THREE.Color("rgb(255, 255, 255)")
-  scene.background = bgCol
-  {
-    // Fog to fade out far out listings 
-    const FOG_NEAR = 10;
-    const FOG_FAR = 50
-    const FOG_COLOR = 0xFFFFFF;
-    scene.fog = new THREE.Fog(FOG_COLOR, FOG_NEAR, FOG_FAR);
-  }
-  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 50);
-  raycaster = new THREE.Raycaster();
-  mouse3d = new THREE.Vector2();
-  
-  // camera.position.z = 0;
-  // camera.position.y = 1;
-  // Create mesh and geometry to attach camera to for swivel view --------------------
-  let camBoxGeom = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-  let camBoxMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0,
-    // overdraw: 0.5,
-  });
-  // Attach camera to mesh object 
-  mesh = new THREE.Mesh(camBoxGeom, camBoxMat);
-  // console.log(camBoxGeom);
-  // mesh.position.y += 0.1;
-  orbit = new THREE.Object3D();
-  orbit.rotation.order = "YXZ"; // this is important to keep level, so Z should be the last axis to rotate in order...
-  orbit.position.copy(mesh.position);
-  scene.add(mesh);
-  renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
-    antialias: true, 
-    alpha: false,
-    powerPreference: "high-performance",
-    gammaFactor: 2.2,
-    outputEncoding: THREE.sRGBEncoding,
-    physicallyCorrectLights: true
-  });
-  renderer.setSize(width, height);
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-  hemiLight.position.set(0, 0, -10);
-  scene.add(hemiLight);
-  
-  //offset the camera and add it to the pivot
-  //you could adapt the code so that you can 'zoom' by changing the z value in camera.position in a mousewheel event..
-  let cameraDistance = 1;
-  camera.position.z = cameraDistance;
-  orbit.add(camera);
-  scene.add(orbit);
-  // Camera follows mouse movement, handle image hovering in 3d view 
-  // document.addEventListener(
-  //   "mousemove",
-  //   function (e) {
-  //     handleCameraMovement(e);
-  //     handle3dHover(e);
-  //   }.bind(this)
-  // );
-  const dirLight = new THREE.DirectionalLight(0xffffff);
-  dirLight.position.set(-3, 10, -10);
-  dirLight.castShadow = true;
-  dirLight.shadow.camera.top = 2;
-  dirLight.shadow.camera.bottom = -2;
-  dirLight.shadow.camera.left = -2;
-  dirLight.shadow.camera.right = 2;
-  dirLight.shadow.camera.near = 0.1;
-  dirLight.shadow.camera.far = 40;
-  //scene.add(dirLight);
-  clock = new THREE.Clock();
-  time = 0;
-  delta = 0;
-  let numResults = 50
-  const size = numResults * 5;
-  const divisions = 10;
-  const gridHelper = new THREE.GridHelper(size, divisions);
-  gridHelper.position.y = -1;
-  gridHelper.position.z = (size/2) * -0.8;  
-  gridHelper.name = "gridHelper";
-  // gridHelper.postition.z = -size/2;
-  scene.add(gridHelper)
-
-  // Create a box geometry (1x1x1)
-  const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-
-  // Create a blue basic material
-  const boxMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-
-  // Create the mesh from geometry and material
-  const blueBox = new THREE.Mesh(boxGeometry, boxMaterial);
-  
-  // Position the box somewhere in front of the camera
-  blueBox.position.set(1, 0, -1);
-  
-  // Add the box to the scene
-  blueBox.name = 'blueBox'
-  scene.add(blueBox)
-
-
-
-  initThreeDone = true
-  // console.log(camera, scene)
-  initPostprocessing()
-  // tick = 0;
-  // Group for all sweater images 
-  // sweaters = new THREE.Group();
 }
 
 onMounted(() => {
-  initThree()
+  console.log('IntroScene mounted')
 })
 
 onBeforeUnmount(() => {

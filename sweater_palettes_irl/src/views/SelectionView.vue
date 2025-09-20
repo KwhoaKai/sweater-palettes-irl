@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import QRCode from 'qrcode'
-import { ImageSegmenter, ImageEmbedder, FilesetResolver, ImageSegmenterResult, ImageEmbedderOptions, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision'
+// import { ImageSegmenter, ImageEmbedder, FilesetResolver, ImageSegmenterResult, ImageEmbedderOptions, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision'
 import { useCounterStore } from '@/stores/counter'
 import { storeToRefs } from 'pinia'
 import { useIntroStore } from '@/stores/useIntroStore'
@@ -24,7 +24,7 @@ import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
  * - last webcam image embedding and palette
  * - listing that showed up in the number 1 spot the most
  * - Array of images in top image's cluster sorted by cosine similarity, this is set to state 
- * Ascending order cosine, ascending order colorDist
+ * - Ascending order cosine, ascending order colorDist
  * 
  * Display the stuff like moodboard for some time
  * 
@@ -72,10 +72,10 @@ const {
   getImageSegmenter,
   areTasksInitialized
 } = useIntroStore()
+const router = useRouter()
 
 //console.log('selectionview', searchResults.value)
 
-const router = useRouter()
 let animReqID = null
 let initDataready = ref(false)
 // THREEjs stuff
@@ -107,8 +107,6 @@ let initInstanceAnim2 = false
 let initInstaniceAnim1ZPosTarget = -2.7
 let initInstaniceAnim1ZPosInit = 0
 let showMetadata = ref(false)
-
-
 
 const initDataFormatting = () => {
   
@@ -155,14 +153,6 @@ const initDataFormatting = () => {
   QRCode.toDataURL(productUrl, { width: 200 })
     .then(url => qrDataUrl.value = url)
     .catch(err => console.error(err))
-
-
-
-
-
-
-
-
   console.log('topListing', topListing.value)
 }
 

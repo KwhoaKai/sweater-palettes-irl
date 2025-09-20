@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import TheWelcome from '../components/TheWelcome.vue'
-import TestScene from '../components/TestScene.vue'
+import IntroScene from '../components/IntroScene.vue'
 </script>
 
 <template>
   <main>
-    <!-- <TestScene /> -->
-    <TheWelcome />
+    <IntroScene />
   </main>
 </template>

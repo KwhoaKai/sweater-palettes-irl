@@ -4,7 +4,7 @@ import { ref } from 'vue'
 export const useIntroStore = defineStore('intro', () => {
   // Reactive state that needs to be shared across routes
   const stream = ref(null)
-  const enabled = ref(false)
+  const camEnabled = ref(false)
   const searchResults = ref([])
   const clusterId = ref(null)
   const topImage = ref(null)
@@ -20,7 +20,7 @@ export const useIntroStore = defineStore('intro', () => {
   async function start() {
     if (!stream.value) {
       stream.value = await navigator.mediaDevices.getUserMedia({ video: true })
-      enabled.value = true
+      camEnabled.value = true
     }
     return stream.value
   }
@@ -29,7 +29,7 @@ export const useIntroStore = defineStore('intro', () => {
     if (stream.value) {
       stream.value.getTracks().forEach(track => track.stop())
       stream.value = null
-      enabled.value = false
+      camEnabled.value = false
     }
   }
 
@@ -72,14 +72,14 @@ export const useIntroStore = defineStore('intro', () => {
 
   return { 
     stream, 
-    enabled, 
+    camEnabled, 
     curEmbedding,
     finalUserPalette,
-    start, 
-    stop, 
     searchResults, 
     clusterId, 
     topImage,
+    start, 
+    stop, 
     setGestureRecognizer,
     getGestureRecognizer,
     setImageEmbedder,
