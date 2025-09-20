@@ -193,7 +193,7 @@ function imageDataToImageElement(imageData: ImageData): HTMLImageElement {
   const canvas = document.createElement('canvas');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Canvas 2D context is null');
 
   // Step 2: Put the image data onto the canvas
@@ -228,8 +228,8 @@ const interactionLoop = async () => {
   const video = videoRef.value
   const canvas = canvasRef.value
   const maskCanvas = maskCanvasRef.value
-  const ctx = canvas.getContext('2d')
-  const ctxMask = maskCanvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const ctxMask = maskCanvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return
 
   try {
@@ -428,7 +428,7 @@ const interactionLoop = async () => {
       const canvasPalette = document.createElement('canvas')
       canvasPalette.width = imageData.width;
       canvasPalette.height = imageData.height;
-      const ctxPalette = canvasPalette.getContext('2d')
+      const ctxPalette = canvasPalette.getContext('2d', { willReadFrequently: true });
       ctxPalette.putImageData(imageData, 0, 0)
       const dataUrl = canvasPalette.toDataURL()
       const img = new Image()
