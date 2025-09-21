@@ -129,6 +129,7 @@ const setupSegmenter = async () => {
 }
 
 const animate = () => {
+  resizeCanvas()
   interactionLoop()
   animReqID = requestAnimationFrame(animate)
 }
@@ -186,30 +187,7 @@ const resizeCanvas = () => {
   canvas.height = video.videoHeight
 }
 
-function imageDataToImageElement(imageData: ImageData): HTMLImageElement {
-// Function converts ImageData to <img> 
-//   
-  // Step 1: Create a canvas
-  const canvas = document.createElement('canvas');
-  canvas.width = imageData.width;
-  canvas.height = imageData.height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('Canvas 2D context is null');
-
-  // Step 2: Put the image data onto the canvas
-  ctx.putImageData(imageData, 0, 0);
-
-  // Step 3: Convert canvas to Data URL
-  const dataUrl = canvas.toDataURL();
-
-  // Step 4: Create an image element
-  const img = new Image();
-  img.src = dataUrl;
-
-  return img;
-}
-
-function shouldRun(interval: any, lastRunTime) {
+function shouldRun(interval: number, lastRunTime: number) {
   const now = performance.now();
   // console.log(now - lastRunTime)
   if (now - lastRunTime >= interval) {
@@ -219,6 +197,7 @@ function shouldRun(interval: any, lastRunTime) {
 }
 
 const interactionLoop = async () => {
+  // Handle drawing for webcam preview and prepare images for search
   const imageSegmenter = getImageSegmenter()
   const gestureRecognizer = getGestureRecognizer()
   const imageEmbedder = getImageEmbedder()
@@ -242,189 +221,186 @@ const interactionLoop = async () => {
     result.categoryMask.close();
 
 
-    // ctx.setTransform(-1, 0, 0, 1, canvas.width, 0); 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const preProcessImage = function() {
+        // ctx.setTransform(-1, 0, 0, 1, canvas.width, 0); 
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // 2. Unflip canvas before pixel manipulation
-    // ctx.setTransform(1, 0, 0, 1, 0, 0)
+      // 2. Unflip canvas before pixel manipulation
+      // ctx.setTransform(1, 0, 0, 1, 0, 0)
 
-    // 3. Get image data (raw pixel buffer)
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
+      // 3. Get image data (raw pixel buffer)
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
 
-    // 4. Process mask
-    let uniqueMaskLabels = new Set(mask);
-    userInFrame.value = uniqueMaskLabels.has(4);
+      // 4. Process mask
+      let uniqueMaskLabels = new Set(mask);
+      userInFrame.value = uniqueMaskLabels.has(4);
 
-    const colors = [
-      [0, 0, 0, 50],
-      [255, 0, 0, 100],
-      [0, 255, 0, 100],
-      [0, 0, 255, 100],
-    ]
+      const colors = [
+        [0, 0, 0, 50],
+        [255, 0, 0, 100],
+        [0, 255, 0, 100],
+        [0, 0, 255, 100],
+      ]
 
-    // Show proportion of masked pixels from each label
-    let maskLabels = []
-    let maskPixels = []
-    let selectedMask = 4
+      // Show proportion of masked pixels from each label
+      let maskLabels = []
+      let maskPixels = []
+      let selectedMask = 4
 
-    // Iterate over mask-classified pixels
-    // white out non-masked pixels for embeddings
-    // Alpha out non-masked pixels for color palette extraction
-    for (let i = 0; i < mask.length; i++) {
-      const category = mask[i]
-      maskLabels.push(category)
-      const color = colors[category] || [255, 255, 255, 100]
-      const pixelIndex = i * 4
+      // Iterate over mask-classified pixels
+      // white out non-masked pixels for embeddings
+      // Alpha out non-masked pixels for color palette extraction
+      for (let i = 0; i < mask.length; i++) {
+        const category = mask[i]
+        maskLabels.push(category)
+        const color = colors[category] || [255, 255, 255, 100]
+        const pixelIndex = i * 4
 
-      if(category == selectedMask) {
-      } else {
-        data[pixelIndex] = 255
-        data[pixelIndex + 1] = 255
-        data[pixelIndex + 2] = 255
-        data[pixelIndex + 3] = 255
-      }
-    }
-    let imgWidth = imageData.width;
-    let imgHeight = imageData.height;
-    const rowLength = imgWidth * 4;
-
-    for (let y = 0; y < imgHeight; y++) {
-      const rowStart = y * rowLength;
-      let left = 0;
-      let right = imgWidth - 1;
-
-      while (left < right) {
-        const leftIndex = rowStart + left * 4;
-        const rightIndex = rowStart + right * 4;
-
-        // Swap RGBA values between left and right pixels
-        for (let i = 0; i < 4; i++) {
-          const temp = data[leftIndex + i];
-          data[leftIndex + i] = data[rightIndex + i];
-          data[rightIndex + i] = temp;
+        if(category == selectedMask) {
+        } else {
+          data[pixelIndex] = 255
+          data[pixelIndex + 1] = 255
+          data[pixelIndex + 2] = 255
+          data[pixelIndex + 3] = 255
         }
-
-        left++;
-        right--;
       }
-    }
-    ctx.putImageData(imageData, 0, 0)
-    ctx.save()
+      let imgWidth = imageData.width;
+      let imgHeight = imageData.height;
+      const rowLength = imgWidth * 4;
 
+      for (let y = 0; y < imgHeight; y++) {
+        const rowStart = y * rowLength;
+        let left = 0;
+        let right = imgWidth - 1;
 
-    // Start gesture stuff, dumb 
+        while (left < right) {
+          const leftIndex = rowStart + left * 4;
+          const rightIndex = rowStart + right * 4;
 
-    // if(userInFrame.value && !showStartGesture.value) {
-    //   // console.log('starting timer')
-    //   // collectingStarted = true
-    //   setTimeout(() => { 
-    //     const totalFrames = userInFrameFrameBuffer.length
-    //     const maskFrames = userInFrameFrameBuffer.filter(x => x).length
-
-    //     if (totalFrames > 0) {
-    //       // console.log(maskFrames / totalFrames);
-    //       if(maskFrames / totalFrames > 0.85) {
-    //         // userInFrameFrameBuffer = []
-    //         showStartGesture.value = true
-    //       }
-    //       showStartGesture.value = false
-    //     } else {
-    //       showStartGesture.value = false
-    //     }
-    //     // collectingStarted = false
-    //     // console.log(totalFrames)
-    //   }, COLLECTION_DURATION_MS); // <-- delay in milliseconds (2 seconds)
-    // }
-    // // if(userInFrame.value && collectingStarted) {
-    // if(userInFrame.value) {
-    //   // console.log(userInFrameFrameBuffer.length, 'wtf lol')
-    //   // console.log('pushing')
-    //   // console.log('uniquemaskalbels', uniqueMaskLabels.has(4))
-    //   userInFrameFrameBuffer.push(uniqueMaskLabels.has(4))
-    // }
-
-    // Clone masked imageData, used to create a second image without background
-    // const clonedData = new Uint8ClampedArray(imageData.data); // deep copy
-    // const clonedImageData = new ImageData(clonedData, imageData.width, imageData.height);
-
-    // const labels = introStore.imageSegmenter.value.getLabels?.() ?? []
-
-    
-    ctx.setTransform(-1, 0, 0, 1, canvas.width, 0); 
-    let results = null
-    let nowInMs = Date.now();
-      if(gestureRecognizer != null) {
-        if (video.currentTime !== lastVideoTime) {
-          lastVideoTime = video.currentTime;
-          // console.log(gestureRecognizer.value, 'GOGOOGO')
-          results = gestureRecognizer.recognizeForVideo(video, nowInMs);
-        }
-        const drawingUtils = new DrawingUtils(ctx)
-        if (results?.landmarks != null) {
-          let curClass = results?.gestures?.[0]?.[0]?.categoryName ?? null
-          // console.log(curClass)
-          
-          if(curClass != 'Victory') {
-            // Check if results are ready 
-            if(searchResultsReady.value && startGestureInFrame.value) {
-              startTransitionToNextScene.value = true
-            }
-
-
-            // startGestureInFrame.value = false
-            for (const landmarks of results.landmarks) {
-              console.log("doing this stuff")
-              drawingUtils.drawConnectors(
-                landmarks,
-                GestureRecognizer.HAND_CONNECTIONS,
-                {
-                  color: "#000000",
-                  lineWidth: 1
-                }
-              );
-              drawingUtils.drawLandmarks(landmarks, {
-                color: "#000000",
-                lineWidth: 0.5
-              });
-            }
-          } else {
-            
-            for (const landmarks of results.landmarks) {
-              landmarks.forEach((point, index) => {
-                const x = point.x * ctx.canvas.width;
-                const y = point.y * ctx.canvas.height;
-
-                // Example: label each point with its index
-                ctx.font = "16px sans-serif";
-                ctx.fillStyle = "black";
-                
-                // ctx.fillText(`✌️ ${index}`, x - 10, y + 10);
-                if(index == 9) {
-                  ctx.font = "120px sans-serif";
-                  ctx.fillText(`✌️`, x - 10, y + 10);
-                }
-              });
-              // startGestureInFrame.value = true
-            }
+          // Swap RGBA values between left and right pixels
+          for (let i = 0; i < 4; i++) {
+            const temp = data[leftIndex + i];
+            data[leftIndex + i] = data[rightIndex + i];
+            data[rightIndex + i] = temp;
           }
-          startGestureInFrame.value = curClass == 'Victory'
+
+          left++;
+          right--;
         }
-        ctx.setTransform(1, 0, 0, 1, 0, 0)
-        // ctx.restore();
+      }
+      // Draw clothing masked image to canvas
+      ctx.putImageData(imageData, 0, 0)
+      ctx.save()
+    }
+    
+    /**
+     * Handles gesture tasks for IntroScene component  
+     *
+     * Tasks:
+     * - Draw gesture preview on context of webcam preview
+     * - Log gesture on current frame (can be null)
+     * - Start transition to SelectionScene 
+     * @param {CanvasRenderingContext2D} ctx The canvas rendering context.
+     * @param {string[]} useGestures
+     * @return {boolean} true if recognized gesture 
+     */
+    const handleGesture = function(
+      ctx,
+      useGestures = ['Victory', 'Open_Palm']
+    ) {
+      let results = null
+      let nowInMs = Date.now()
+      // Weird horizontal flip 
+      ctx.setTransform(-1, 0, 0, 1, canvas.width, 0); 
+
+      const drawGestureEmoji = function(results: [{}], gestureName: string) {
+        const emojiMap = {
+          Victory: {
+            displayStr: '✌️',
+            landmarkIndex: 13,
+          },
+          Open_Palm: {
+            displayStr: '✋',
+            landmarkIndex: 17,
+          }
+        } as const;
+
+        const useEmoji = emojiMap[gestureName as keyof typeof emojiMap]['displayStr'] ?? '❓'; 
+        const useIndex = emojiMap[gestureName as keyof typeof emojiMap]['landmarkIndex'] ?? '❓'; 
+        // use ❓ if the gestureName is not recognized
+        for (const landmarks of results.landmarks) {
+          landmarks.forEach((point, index) => {
+            const x = point.x * ctx.canvas.width;
+            const y = point.y * ctx.canvas.height;
+
+            // Example: label each point with its index
+            ctx.font = "16px sans-serif";
+            ctx.fillStyle = "black";
+            
+            // ctx.fillText(`✌️ ${index}`, x - 10, y + 10);
+            if(index == useIndex) {
+              ctx.font = "120px sans-serif";
+              ctx.fillText(useEmoji, x - 10, y + 10);
+            }
+          });
+          // startGestureInFrame.value = true
+        }
       }
 
-    // Draw clothing masked image to canvas
+      const drawSkeleton = function(results, drawingUtils) {
+        for (const landmarks of results.landmarks) {
+          console.log("doing this stuff")
+          drawingUtils.drawConnectors(
+            landmarks,
+            GestureRecognizer.HAND_CONNECTIONS,
+            {
+              color: "#000000",
+              lineWidth: 1
+            }
+          );
+          drawingUtils.drawLandmarks(landmarks, {
+            color: "#000000",
+            lineWidth: 0.5
+          });
+        }
+      }
 
-    // Create <img> for color palette extraction if user has no palette and interval is met
-    let [shouldTrigger, newTime] = shouldRun(0, lastTriggerTime);
-    if (shouldTrigger) {
-      lastTriggerTime = newTime;
-      // console.log('interval passed');
+      if (video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
+        results = gestureRecognizer.recognizeForVideo(video, nowInMs);
+      }
+      const drawingUtils = new DrawingUtils(ctx)
+      if (results?.landmarks != null) {
+        let curClass = results?.gestures?.[0]?.[0]?.categoryName ?? null
+        // console.log(curClass)
+        
+        // if(curClass != 'Victory') {
+        if(!useGestures.includes(curClass)) {
+          // Check if results are ready 
+          if(searchResultsReady.value && startGestureInFrame.value) {
+            startTransitionToNextScene.value = true
+          }
+          // startGestureInFrame.value = false
+          drawSkeleton(
+            results,
+            drawingUtils
+          )
+        } else {
+          console.log(results.landmarks, 'well its not null')
+          drawGestureEmoji(results, curClass)
+        }
+        startGestureInFrame.value = useGestures.includes(curClass)
+        return curClass
+      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      // ctx.restore();
+      return null
     }
 
-    // 
-    if ((!userPaletteRgb.values || userPaletteRgb.values.length === 0) && shouldTrigger) {
+     const getUserPalette = async function(ctx) {
+      const imageData = ctx.getImageData(0, 0, width, height);
+      // Creating Image object for Vibrant color palette extraction
       const canvasPalette = document.createElement('canvas')
       canvasPalette.width = imageData.width;
       canvasPalette.height = imageData.height;
@@ -435,7 +411,6 @@ const interactionLoop = async () => {
       img.src = dataUrl
       img.style.width = '512px'
       img.style.margin = '10px'
-
 
       // Color palette shit 
       let v = new Vibrant(dataUrl);
@@ -449,25 +424,30 @@ const interactionLoop = async () => {
         acc.push(rgb)
         return acc
       }, [])
+      return rgbPalettes
+    }
+
+    preProcessImage()
+    // Handle gesture drawing and scene transition check
+    const curGesture = gestureRecognizer
+      ? handleGesture(ctx, ['Victory', 'Open_Palm'])
+      : null;
+
+    // Draw image to canvas
+    // Create <img> for color palette extraction if user has no palette and interval is met
+    let [shouldTrigger, newTime] = shouldRun(0, lastTriggerTime);
+    if (shouldTrigger) {
+      lastTriggerTime = newTime;
+    }
+
+    if ((!userPaletteRgb.values || userPaletteRgb.values.length === 0) && shouldTrigger) {      
       // console.log(rgbPalettes);
+      const rgbPalettes = await getUserPalette(ctx)
       userPaletteRgb.value = rgbPalettes
     }
 
-    let labelPercentages = maskLabels
-    let categories = ['background', 'hair', 'body-skin', 'face-skin', 'clothes', 'others']
-
-    // Get proportion of masks to total image 
-    const counts = maskLabels.reduce((acc, val) => {
-      let category = categories[val]
-      acc[category] = (acc[category] || 0) + 1
-      return acc
-    }, {})
-    countsData.value = counts
-    // console.log(countsData.value)
-
-    
-
     // Calculate cosine similarity
+    let imageData = ctx.getImageData(0, 0, width, height);
     const userVideoEmbedding = await imageEmbedder.embed(imageData)
     const userVideoEmbeddingFloatArr = userVideoEmbedding.embeddings[0].floatEmbedding
     curCamFrameEmbedding.value = userVideoEmbedding
@@ -486,13 +466,16 @@ const interactionLoop = async () => {
         const listingCategories = ['tops']
         // const listingCategories = ['jacket-outerwear', 'tops', 'others', 'bottoms']
         // const listingCategories = ['others']
-        if (listingCategories.includes(category) && Number(photoIdx) == 0 && userPaletteRgb.value.length > 0) {
-          // try {
-            // console.log(key)
+
+        // 0: First image of item 
+        const usePhotoIdx = 0
+        if (
+          listingCategories.includes(category) 
+            && Number(photoIdx) == usePhotoIdx 
+            && userPaletteRgb.value.length > 0
+          ) {
             const deQuantizedEmbedding = dequantizeEmbedding(imgEmbeddings[key]); // array of floats
-            // console.log(userVideoEmbeddingFloatArr, deQuantizedEmbedding);
             const similarityCosine = cosineSimilarity(userVideoEmbeddingFloatArr, deQuantizedEmbedding)
-            // console.log('similarityCOsine',userVideoEmbeddingFloatArr, deQuantizedEmbedding)
             let imgPalette = palettesAndClusts[key]?.palette ?? null
             let parsedImgPalette = JSON.parse(imgPalette)
   
@@ -507,11 +490,9 @@ const interactionLoop = async () => {
               : userPaletteRgb.value.map(([r, g, b]) => ({ r, g, b }))
   
             // Compute similarity only if both palettes exist
-            // console.log(userPaletteFormatted[0], imgPaletteFormatted[0], 'ufccc')
             const similarityColor = (userPaletteFormatted && imgPaletteFormatted)
               ? getPalDist(userPaletteFormatted, imgPaletteFormatted)
               : null;
-            console.log('similarityColor', userPaletteFormatted, imgPaletteFormatted)
   
             if (imgPalette == null) {
               palCtBad += 1
@@ -526,57 +507,37 @@ const interactionLoop = async () => {
               palette: parsedImgPalette
             })     
         }
-        // console.log(`Similarity for ${key}:`, similarity);
       });
-      const getFinalImages = function(imageDict, firstSort, secondSort, nResults) {
+      const getFinalImages = function(
+        imageDict, 
+        sortMethodFirst, 
+        sortMethodSecond, 
+        nResults,
+        curGesture
+      ) {
         let filteredDistMap = imageDict.filter(item => item.similarityColor != null)
-        let secondFilt = firstSort == 'cosine' ? 'color' : 'cosine'
-        let firstSortDists = firstSort == 'cosine'
-        ? filteredDistMap.sort((a, b) => b.similarityCosine - a.similarityCosine)
-        : filteredDistMap.sort((a, b) => b.similarityColor - a.similarityColor)
-        
-        let limitedDists = filteredDistMap.slice(0, 50)
-        let limitedSort = firstFilt == 'cosine'
-        ? limitedDists.sort((a, b) => b.similarityColor - a.similarityColor)
-        : limitedDists.sort((a, b) => b.similarityCosine - a.similarityCosine)
-  
-        return limitedDists.slice(0, nResults)
+        const ascending = curGesture === 'Victory'
+        const firstSortField = sortMethodFirst === 'cosine' ? 'similarityCosine' : 'similarityColor';
+        const secondSortField = sortMethodSecond === 'cosine' ? 'similarityCosine' : 'similarityColor';
+
+        const sortByField = (arr, field, asc) => 
+          arr.slice().sort((a, b) => asc ? a[field]! - b[field]! 
+                                         : b[field]! - a[field]!)
+        let firstSortResults = sortByField(filteredDistMap, firstSortField, ascending)
+        let limitedDists = firstSortResults.slice(0, nResults)
+        let secondSortResults = sortByField(limitedDists, secondSortField, ascending)
+        return secondSortResults
       }
   
       let firstFilt = 'cosine'
       let secondFilt = firstFilt == 'cosine' ? 'color' : 'cosine'
-      let finalImages = getFinalImages(distMap, firstFilt, secondFilt, 30)
+      let finalImages = getFinalImages(distMap, firstFilt, secondFilt, 30, curGesture)
       searchResults.value.push(finalImages)
       if (searchResults.value.length > searchResultsReadyThreshold) {
         searchResultsReady.value = true
         finalUserPalette.value = userPaletteRgb.value
         searchResults.value.pop()
       }
-
-
-
-      // let windowHeight = window.innerHeight
-      // let windowWidth = window.innerWidth
-
-      // let imgWidth = 500
-      // let imgHeight = imgWidth
-
-      // let nCols = windowWidth / imgWidth
-      // let nRows = Math.ceil(finalImages.length / nCols)
-
-      // let grid = []
-
-      // for(let i=0; i<nCols; i++) {
-      //   for(let j=0; j<nRows; j++) {
-      //     let idx = i*nCols + j
-      //     if(idx < finalImages.length) {
-      //       finalImages[idx].x = i * imgWidth + imgWidth/2
-      //       finalImages[idx].y = j * imgHeight + imgHeight/2
-      //       finalImages[idx].width = imgWidth * 0.8
-      //     }
-      //   }
-      // }
-
 
       finalImages = finalImages.map((item) => {
         return {
@@ -587,17 +548,15 @@ const interactionLoop = async () => {
 
         }
       })
-      // console.log(finalImages)
+      // Top results 
+      // Currently displayed as grid in template
       distMapUse.value = finalImages
     }
-    // Empty results if 
+    // Empty results if:
+    // - start gesture dropped before results ready
+    // - array too long 
     if((!startGestureInFrame.value && !searchResultsReady.value) || searchResults.value.length > 100) {
       searchResults.value = []
-    }
-
-    try {
-    } catch (e) {
-
     }
   } catch (e) {
     console.warn('interactionLoop() failed: ', e)
