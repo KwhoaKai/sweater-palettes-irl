@@ -17,8 +17,6 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 
-
-
 /**This view receives the user's webcam feed, and sorted data
  * Pinia store
  * - last webcam image embedding and palette
@@ -33,15 +31,6 @@ import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
  * Cluster display
  *  Grid of panels one level up. 
  *  Panel textures are sequence images sorted to similariy with init image 
- * 
- * user moves up 
- * 
- * 
- * Cluster display 
- *   Grid of panels one level up
- *   Panel textures are sequence images sorted to similariy with init image
- * 
- * 
  */
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -81,7 +70,6 @@ let initDataready = ref(false)
 // THREEjs stuff
 let showInitView = ref(false)
 let threeReady = ref(false)
-// let threeReady = ref(true)
 let curScene = ref('SHOW_TOP_RESULT') // default scene
 let scene = null
 let postprocessing = {}
@@ -108,7 +96,37 @@ let initInstaniceAnim1ZPosTarget = -2.7
 let initInstaniceAnim1ZPosInit = 0
 let showMetadata = ref(false)
 
-const initDataFormatting = () => {
+onMounted(() => {
+  console.log('before datafomratting')
+  setupData()
+  console.log('after datafor', topListing.value)
+  setupThree()
+  animate()
+})
+
+onBeforeUnmount(() => {
+  // stopWebcam()
+})
+
+// Year text display
+const displaySeasonYear = computed(() => {
+  if (!topListing.value) return '';
+  const listingCur = topListing.value?.listingData
+  if (!listingCur) return '';
+
+  let finalStr = ''
+  if(listingCur.year) {
+    finalStr += `${listingCur.year} `
+  } else if(listingCur.years_ago) {
+    finalStr += listingCur.years_ago.toString()
+  }
+  if(listingCur.season_code) {
+    finalStr += listingCur.season_code
+  }
+  return finalStr;
+});
+
+const setupData = () => {
   
   if (!searchResults.value || searchResults.value.length === 0) return 
   const counts = {}
@@ -156,73 +174,7 @@ const initDataFormatting = () => {
   console.log('topListing', topListing.value)
 }
 
-
-const initPostprocessing = () => {
-
-  let width = window.innerWidth;
-  let height = window.innerHeight;
-
-  const renderPass = new RenderPass(scene, camera)
-  const bokehPass = new BokehPass(scene, camera, {
-    focus: 1.0,
-    aperture: 0.00003,
-    maxblur: 0.01,
-    width: width,
-    height: height,
-  });
-
-  const composerUse = new EffectComposer(renderer)
-  composer = composerUse
-  // console.log(composer)
-  composer.addPass(renderPass);
-  composer.addPass(bokehPass);
-
-  postprocessing.composer = composer;
-  postprocessing.bokeh = bokehPass;
-  threeReady.value = true
-  showInitView.value = true
-  // console.log(scene, 'SCENE')
-}
-
-const makeInstance = function (geom, img, data, x, y, z, xRotDir) {
-  // console.log(renderer, threeReady.value)
-  if(!renderer ) return 
-  console.log('makeInstance', img, data)
-
-  const texture = new THREE.TextureLoader().load(img);
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  const imgmat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    map: texture,
-  });
-  const obj = new THREE.Mesh(geom, imgmat);
-  obj.userData = { ...data }
-  
-  const xRot = 60 * (Math.PI / 180); 
-  const initYRot = xRot * xRotDir;
-  
-  // Rotation and position values
-  obj.initYRot = initYRot;
-  obj.targetYRot = initYRot; 
-  obj.initXPos = x;
-  obj.targetXPos = x;
-  obj.targetZPos = z;
-  obj.xRotDir = xRotDir;
-  obj.position.x = x;
-  obj.position.y = y;
-  obj.position.z = z;
-  obj.rotation.y = initYRot;
-  // add texture loader as property of object
-  obj.texture = texture;
-  // sweaters.add(obj);
-  return obj;
-}
-
-const setInstancePositionTarget = (instance, axis, target) => {
-  instance[axis]=target
-}
-
-const initThree = () => {
+const setupThree = () => {
   const canvas = document.getElementById("threeCanvas")
   let width = window.innerWidth
   let height = window.innerHeight
@@ -392,9 +344,73 @@ const initThree = () => {
   initPhotoInstance.name = 'topListing';
   initSceneInstances.add(initPhotoInstance)
   scene.add(initSceneInstances);
-  initPostprocessing()
+  setupPostprocessing()
   // tick = 0;
   // Group for all sweater images  
+}
+
+const setupPostprocessing = () => {
+
+  let width = window.innerWidth;
+  let height = window.innerHeight;
+
+  const renderPass = new RenderPass(scene, camera)
+  const bokehPass = new BokehPass(scene, camera, {
+    focus: 1.0,
+    aperture: 0.00003,
+    maxblur: 0.01,
+    width: width,
+    height: height,
+  });
+
+  const composerUse = new EffectComposer(renderer)
+  composer = composerUse
+  // console.log(composer)
+  composer.addPass(renderPass);
+  composer.addPass(bokehPass);
+
+  postprocessing.composer = composer;
+  postprocessing.bokeh = bokehPass;
+  threeReady.value = true
+  showInitView.value = true
+  // console.log(scene, 'SCENE')
+}
+
+const animate = () => {
+    // threeready.value should be true by the time this is called
+    if(threeReady.value) {
+      updateThree()
+      composer.render()
+      const RANGE = 0.09;
+      const SCALE = 0.1;
+      const Z_SCROLL = 0.004;
+      const Z_STOP_MULT = .5;
+      const Z_MOVE = Z_SCROLL;
+      // let blueBox = scene.getObjectByName('blueBox')
+      // console.log(blueBox)
+      // console.log('inanimate')
+      // blueBox.rotation.y += .1
+      
+    }
+
+    // camera.position.z -= Z_SCROLL;
+    // mesh.position.z -= Z_MOVE;
+    // orbit.position.z -= Z_MOVE;
+    // Idle bob object that camera is attached to
+    // orbit.position.x = Math.cos(tick) * range;
+    // orbit.position.y = Math.sin(tick) * range;
+    // tick += 0.01;
+  // } 
+  animReqID = requestAnimationFrame(animate)
+}
+
+/**
+ * Handles updates to 3d scene at every frame of animate()
+ */
+const updateThree = () => {
+  if(curScene.value == 'SHOW_TOP_RESULT') {
+    updateTopResultScene()
+  }
 }
 
 /**
@@ -445,80 +461,48 @@ const updateTopResultScene = () => {
       })
   }
 }
-/**
- * Handles updates to 3d scene at every frame of animate()
- */
-const updateThree = () => {
-  if(curScene.value == 'SHOW_TOP_RESULT') {
-    updateTopResultScene()
-  }
+
+const makeInstance = function (geom, img, data, x, y, z, xRotDir) {
+  // console.log(renderer, threeReady.value)
+  if(!renderer ) return 
+  console.log('makeInstance', img, data)
+
+  const texture = new THREE.TextureLoader().load(img);
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const imgmat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    map: texture,
+  });
+  const obj = new THREE.Mesh(geom, imgmat);
+  obj.userData = { ...data }
+  
+  const xRot = 60 * (Math.PI / 180); 
+  const initYRot = xRot * xRotDir;
+  
+  // Rotation and position values
+  obj.initYRot = initYRot;
+  obj.targetYRot = initYRot; 
+  obj.initXPos = x;
+  obj.targetXPos = x;
+  obj.targetZPos = z;
+  obj.xRotDir = xRotDir;
+  obj.position.x = x;
+  obj.position.y = y;
+  obj.position.z = z;
+  obj.rotation.y = initYRot;
+  // add texture loader as property of object
+  obj.texture = texture;
+  // sweaters.add(obj);
+  return obj;
 }
 
 const getCurrentScene = () => {
   return curScene.value
 }
 
-
-const animate = () => {
-    // threeready.value should be true by the time this is called
-    if(threeReady.value) {
-      updateThree()
-      composer.render()
-      const RANGE = 0.09;
-      const SCALE = 0.1;
-      const Z_SCROLL = 0.004;
-      const Z_STOP_MULT = .5;
-      const Z_MOVE = Z_SCROLL;
-      // let blueBox = scene.getObjectByName('blueBox')
-      // console.log(blueBox)
-      // console.log('inanimate')
-      // blueBox.rotation.y += .1
-      
-    }
-
-    // camera.position.z -= Z_SCROLL;
-    // mesh.position.z -= Z_MOVE;
-    // orbit.position.z -= Z_MOVE;
-    // Idle bob object that camera is attached to
-    // orbit.position.x = Math.cos(tick) * range;
-    // orbit.position.y = Math.sin(tick) * range;
-    // tick += 0.01;
-  // } 
-  animReqID = requestAnimationFrame(animate)
+const setInstancePositionTarget = (instance, axis, target) => {
+  instance[axis]=target
 }
-
-
-onMounted(() => {
-  console.log('before datafomratting')
-  initDataFormatting()
-  console.log('after datafor', topListing.value)
-  initThree()
-  animate()
-})
-
-onBeforeUnmount(() => {
-  // stopWebcam()
-})
-
-// Year text display
-const displaySeasonYear = computed(() => {
-  if (!topListing.value) return '';
-  const listingCur = topListing.value?.listingData
-  if (!listingCur) return '';
-
-  let finalStr = ''
-  if(listingCur.year) {
-    finalStr += `${listingCur.year} `
-  } else if(listingCur.years_ago) {
-    finalStr += listingCur.years_ago.toString()
-  }
-  if(listingCur.season_code) {
-    finalStr += listingCur.season_code
-  }
-  return finalStr;
-});
-
-
 </script>
 <template>
   <main>

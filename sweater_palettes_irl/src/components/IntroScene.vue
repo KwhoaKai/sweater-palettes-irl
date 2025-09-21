@@ -122,29 +122,6 @@ const setupSegmenter = async () => {
   setImageSegmenter(segmenter)
 }
 
-const resizeCanvas = () => {
-  if (!videoRef.value || !canvasRef.value) return
-  const video = videoRef.value
-  const canvas = canvasRef.value
-  canvas.width = video.videoWidth
-  canvas.height = video.videoHeight
-}
-
-function shouldRun(interval: number, lastRunTime: number) {
-  const now = performance.now();
-  // console.log(now - lastRunTime)
-  if (now - lastRunTime >= interval) {
-    return [true, now];
-  }
-  return [false, lastRunTime];
-}
-
-const animate = () => {
-  resizeCanvas()
-  handleInteractionLoop()
-  animReqID = requestAnimationFrame(animate)
-}
-
 const toggleInteractionLoop = async () => {
   if (camEnabled.value) {
     stopInteractionLoop()
@@ -555,6 +532,29 @@ const handleInteractionLoop = async () => {
   } catch (e) {
     console.warn('interactionLoop() failed: ', e)
   }
+}
+
+const animate = () => {
+  resizeCanvas()
+  handleInteractionLoop()
+  animReqID = requestAnimationFrame(animate)
+}
+
+const resizeCanvas = () => {
+  if (!videoRef.value || !canvasRef.value) return
+  const video = videoRef.value
+  const canvas = canvasRef.value
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+}
+
+function shouldRun(interval: number, lastRunTime: number) {
+  const now = performance.now();
+  // console.log(now - lastRunTime)
+  if (now - lastRunTime >= interval) {
+    return [true, now];
+  }
+  return [false, lastRunTime];
 }
 </script>
 
