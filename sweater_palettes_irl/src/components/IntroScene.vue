@@ -41,34 +41,20 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const maskCanvasRef = ref<HTMLCanvasElement | null>(null)
 const countsData = ref({})
-// const curCamFrameEmbedding = ref({})
 const router = useRouter()
 const distMapUse = ref({})
 const userPaletteRgb = ref([])
-// const paletteContainer = ref<HTMLDivElement | null>(null)
-const allListingData = ref({})
 const webcamButtonText = ref('ENABLE WEBCAM')
 let startTransitionToNextScene = ref(false)
-// let imageSegmenter: ImageSegmenter
-// let imageEmbedder: ImageEmbedder
-// let gestureRecognizer: GestureRecognizer
-
-
-// let stream: MediaStream | null = null
 let lastTriggerTime = 0;
 const INTERVAL = 2000; // ms
 let lastVideoTime = -1
-
-// Handle user inframe timing
-let searchResultsReady = ref(false)
+let searchResultsReady = ref(false) // Starts transition to /selection
 const userInFrame = ref(false)
 const searchResultsReadyThreshold = 27
-let userInFrameFrameBuffer = []
 const showStartGesture = ref(false)
-const COLLECTION_DURATION_MS = 1000
 let animReqID: number | null = null;
 let startGestureInFrame = ref(false)
-
 
 watch(startTransitionToNextScene, (newVal) => {
   if (newVal) {
@@ -76,6 +62,14 @@ watch(startTransitionToNextScene, (newVal) => {
       router.push('/selection')
     }, 300)
   }
+})
+
+onMounted(() => {
+  console.log('IntroScene mounted')
+})
+
+onBeforeUnmount(() => {
+  stopInteractionLoop()
 })
 
 const createGestureRecognizer = async () => {
@@ -128,13 +122,44 @@ const setupSegmenter = async () => {
   setImageSegmenter(segmenter)
 }
 
+const resizeCanvas = () => {
+  if (!videoRef.value || !canvasRef.value) return
+  const video = videoRef.value
+  const canvas = canvasRef.value
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+}
+
+function shouldRun(interval: number, lastRunTime: number) {
+  const now = performance.now();
+  // console.log(now - lastRunTime)
+  if (now - lastRunTime >= interval) {
+    return [true, now];
+  }
+  return [false, lastRunTime];
+}
+
 const animate = () => {
   resizeCanvas()
-  interactionLoop()
+  handleInteractionLoop()
   animReqID = requestAnimationFrame(animate)
 }
 
-const startWebcam = async () => {
+const toggleInteractionLoop = async () => {
+  if (camEnabled.value) {
+    stopInteractionLoop()
+    if(animReqID !== null) {
+      cancelAnimationFrame(animReqID)
+    }
+  } else {
+    await setupEmbedder()
+    await setupSegmenter()
+    await createGestureRecognizer()
+    await startInteractionLoop()
+  }
+}
+
+const startInteractionLoop = async () => {
   if (!videoRef.value || !canvasRef.value) return
 
   try {
@@ -158,45 +183,14 @@ const startWebcam = async () => {
   }
 }
 
-const stopWebcam = () => {
+const stopInteractionLoop = () => {
   stream.value?.getTracks().forEach((track) => track.stop())
   stream.value = null
   camEnabled.value = false
   webcamButtonText.value = 'ENABLE WEBCAM'
 }
 
-const toggleWebcam = async () => {
-  if (camEnabled.value) {
-    stopWebcam()
-    if(animReqID !== null) {
-      cancelAnimationFrame(animReqID)
-    }
-  } else {
-    await setupEmbedder()
-    await setupSegmenter()
-    await createGestureRecognizer()
-    await startWebcam()
-  }
-}
-
-const resizeCanvas = () => {
-  if (!videoRef.value || !canvasRef.value) return
-  const video = videoRef.value
-  const canvas = canvasRef.value
-  canvas.width = video.videoWidth
-  canvas.height = video.videoHeight
-}
-
-function shouldRun(interval: number, lastRunTime: number) {
-  const now = performance.now();
-  // console.log(now - lastRunTime)
-  if (now - lastRunTime >= interval) {
-    return [true, now];
-  }
-  return [false, lastRunTime];
-}
-
-const interactionLoop = async () => {
+const handleInteractionLoop = async () => {
   // Handle drawing for webcam preview and prepare images for search
   const imageSegmenter = getImageSegmenter()
   const gestureRecognizer = getGestureRecognizer()
@@ -562,14 +556,6 @@ const interactionLoop = async () => {
     console.warn('interactionLoop() failed: ', e)
   }
 }
-
-onMounted(() => {
-  console.log('IntroScene mounted')
-})
-
-onBeforeUnmount(() => {
-  stopWebcam()
-})
 </script>
 
 <template>
@@ -586,7 +572,7 @@ onBeforeUnmount(() => {
       </v-col>
       <!-- <v-spacer></v-spacer> -->
     </v-row>
-    <button @click="toggleWebcam">
+    <button @click="toggleInteractionLoop">
       {{ webcamButtonText }}
     </button>
     <v-row id="webcamRow">
@@ -979,10 +965,6 @@ button {
 
   z-index: -5;
 }
-
-
-
-
 
 .fadeEaseOut-enter-active,
 .fadeEaseOut-leave-active {
