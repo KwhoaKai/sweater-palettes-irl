@@ -20,17 +20,17 @@ import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 /**This view receives the user's webcam feed, and sorted data
  * Pinia store
  * - last webcam image embedding and palette
- * - listing that showed up in the number 1 spot the most
- * - Array of images in top image's cluster sorted by cosine similarity, this is set to state 
+ * - listing that showed up in the number 1 spot the most frequently
+ * - Array of images in top image's cluster sorted by cosine similarity, this is set to state
  * - Ascending order cosine, ascending order colorDist
- * 
+ *
  * Display the stuff like moodboard for some time
- * 
- * user moves up 
- * 
+ *
+ * user moves up
+ *
  * Cluster display
- *  Grid of panels one level up. 
- *  Panel textures are sequence images sorted to similariy with init image 
+ *  Grid of panels one level up.
+ *  Panel textures are sequence images sorted to similariy with init image
  */
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -38,8 +38,8 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const maskCanvasRef = ref<HTMLCanvasElement | null>(null)
 const qrDataUrl = ref('')
 
-// Take the samples, get the most popular cluster out of all top 3 assignments 
-// Then take that image, go to that image's cluster, and show images in descending order of 
+// Take the samples, get the most popular cluster out of all top 3 assignments
+// Then take that image, go to that image's cluster, and show images in descending order of
 // cosine similarity to that image
 const {
   stream,
@@ -50,14 +50,14 @@ const {
   topImage
 } = storeToRefs(useIntroStore())
 
-const { 
-  start, 
-  stop, 
-  setGestureRecognizer, 
+const {
+  start,
+  stop,
+  setGestureRecognizer,
   getGestureRecognizer,
-  setImageEmbedder, 
+  setImageEmbedder,
   getImageEmbedder,
-  setImageSegmenter, 
+  setImageSegmenter,
   getImageSegmenter,
   areTasksInitialized
 } = useIntroStore()
@@ -66,13 +66,13 @@ const router = useRouter()
 //console.log('selectionview', searchResults.value)
 
 let animReqID = null
-let initDataready = ref(false)
+const initDataready = ref(false)
 // THREEjs stuff
-let showInitView = ref(false)
-let threeReady = ref(false)
-let curScene = ref('SHOW_TOP_RESULT') // default scene
+const showInitView = ref(false)
+const threeReady = ref(false)
+const curScene = ref('SHOW_TOP_RESULT') // default scene
 let scene = null
-let postprocessing = {}
+const postprocessing = {}
 let camera = null
 let raycaster = null
 let mouse3d = null
@@ -86,15 +86,15 @@ let renderer = null
 
 let initThreeDone = false
 // let topListing = {'key':'0_jacket-outerwear_10208-241226-0071_1024x1024_0.jpg'}
-let topListing = ref(null)
+const topListing = ref(null)
 
-// Initial scene animations 
+// Initial scene animations
 let initSceneInstances = null
 let initInstanceAnim1 = false
 let initInstanceAnim2 = false
-let initInstaniceAnim1ZPosTarget = -2.7
-let initInstaniceAnim1ZPosInit = 0
-let showMetadata = ref(false)
+const initInstaniceAnim1ZPosTarget = -2.7
+const initInstaniceAnim1ZPosInit = 0
+const showMetadata = ref(false)
 
 onMounted(() => {
   console.log('before datafomratting')
@@ -127,8 +127,8 @@ const displaySeasonYear = computed(() => {
 });
 
 const setupData = () => {
-  
-  if (!searchResults.value || searchResults.value.length === 0) return 
+
+  if (!searchResults.value || searchResults.value.length === 0) return
   const counts = {}
   searchResults.value.forEach((searchResult) => {
     const curTopListing = searchResult[0]['key']
@@ -149,24 +149,24 @@ const setupData = () => {
     cluster: data.cluster
   }))
   resultsArr.sort((a, b) => b.count - a.count)
-  let topKey = resultsArr[0]?.key
-  let topProdId = topKey.split('_')[2]
-  let topListingMetadataIdx = imgMetaData && Array.isArray(imgMetaData)
+  const topKey = resultsArr[0]?.key
+  const topProdId = topKey.split('_')[2]
+  const topListingMetadataIdx = imgMetaData && Array.isArray(imgMetaData)
     ? imgMetaData.findIndex(obj => obj.product_id === topProdId)
     : -1
 
-  let topListingMetadata = topListingMetadataIdx !== -1
+  const topListingMetadata = topListingMetadataIdx !== -1
     ? imgMetaData[topListingMetadataIdx]
     : {}
   topListing.value = {
-    'key': topKey, 
+    'key': topKey,
     'cluster':resultsArr[0]?.cluster,
     'listingData': topListingMetadata
   }
 
 
   // Generate QR code for top listing
-  let productUrl = `https://archivestore-official-ec.myshopify.com/products/${topProdId}`
+  const productUrl = `https://archivestore-official-ec.myshopify.com/products/${topProdId}`
 
   QRCode.toDataURL(productUrl, { width: 200 })
     .then(url => qrDataUrl.value = url)
@@ -176,15 +176,15 @@ const setupData = () => {
 
 const setupThree = () => {
   const canvas = document.getElementById("threeCanvas")
-  let width = window.innerWidth
-  let height = window.innerHeight
+  const width = window.innerWidth
+  const height = window.innerHeight
   canvas.width = width
   canvas.height = height
   scene = new THREE.Scene()
   const bgCol = new THREE.Color("rgb(255,255,255)")
   scene.background = bgCol
   {
-    // Fog to fade out far out listings 
+    // Fog to fade out far out listings
     const FOG_NEAR = 10;
     const FOG_FAR = 50
     const FOG_COLOR = 0xFFFFFF;
@@ -193,18 +193,18 @@ const setupThree = () => {
   camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 50);
   raycaster = new THREE.Raycaster();
   mouse3d = new THREE.Vector2();
-  
+
   // camera.position.z = 0;
   // camera.position.y = 1;
   // Create mesh and geometry to attach camera to for swivel view --------------------
-  let camBoxGeom = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-  let camBoxMat = new THREE.MeshBasicMaterial({
+  const camBoxGeom = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+  const camBoxMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
     opacity: 0,
     // overdraw: 0.5,
   });
-  // Attach camera to mesh object 
+  // Attach camera to mesh object
   mesh = new THREE.Mesh(camBoxGeom, camBoxMat);
   // console.log(camBoxGeom);
   // mesh.position.y += 0.1;
@@ -214,7 +214,7 @@ const setupThree = () => {
   scene.add(mesh);
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
-    antialias: true, 
+    antialias: true,
     alpha: false,
     powerPreference: "high-performance",
     gammaFactor: 2.2,
@@ -225,15 +225,15 @@ const setupThree = () => {
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   hemiLight.position.set(0, 0, -10);
   scene.add(hemiLight);
-  
+
   //offset the camera and add it to the pivot
   //you could adapt the code so that you can 'zoom' by changing the z value in camera.position in a mousewheel event..
-  let cameraDistance = 1;
+  const cameraDistance = 1;
   camera.position.z = cameraDistance;
   camera.position.y = 2;
   orbit.add(camera);
   scene.add(orbit);
-  // Camera follows mouse movement, handle image hovering in 3d view 
+  // Camera follows mouse movement, handle image hovering in 3d view
   // document.addEventListener(
   //   "mousemove",
   //   function (e) {
@@ -254,16 +254,16 @@ const setupThree = () => {
   clock = new THREE.Clock();
   time = 0;
   delta = 0;
-  let numResults = 50
+  const numResults = 50
   const size = numResults * 5;
   const divisions = 10;
   const gridHelper = new THREE.GridHelper(size, divisions);
   gridHelper.position.y = -1;
-  gridHelper.position.z = (size/2) * -0.8;  
+  gridHelper.position.z = (size/2) * -0.8;
   gridHelper.name = "gridHelper";
   // gridHelper.postition.z = -size/2;
   scene.add(gridHelper)
-  
+
 
   // Create a box geometry (1x1x1)
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -273,10 +273,10 @@ const setupThree = () => {
 
   // Create the mesh from geometry and material
   const blueBox = new THREE.Mesh(boxGeometry, boxMaterial);
-  
+
   // Position the box somewhere in front of the camera
   blueBox.position.set(1, 0, -1);
-  
+
   // Add the box to the scene
   blueBox.name = 'blueBox'
   // scene.add(blueBox)
@@ -285,20 +285,20 @@ const setupThree = () => {
   // console.log(camera, scene)
 
 
-  // Initial scene setup 
-  // Top image is ready already 
-  // - make top image instance and add to scene 
-  // displayMetadata state variable will be set in animate 
+  // Initial scene setup
+  // Top image is ready already
+  // - make top image instance and add to scene
+  // displayMetadata state variable will be set in animate
 
-  // Assemble palette, cluster, and embedding data for top listing 
+  // Assemble palette, cluster, and embedding data for top listing
 
 
-  let topProdId = topListing.value.key.split('_')[2];
-  let topListingMetadataIdx = imgMetaData && Array.isArray(imgMetaData)
+  const topProdId = topListing.value.key.split('_')[2];
+  const topListingMetadataIdx = imgMetaData && Array.isArray(imgMetaData)
     ? imgMetaData.findIndex(obj => obj.product_id === topProdId)
     : -1
 
-  let topListingMetadata = topListingMetadataIdx !== -1
+  const topListingMetadata = topListingMetadataIdx !== -1
     ? imgMetaData[topListingMetadataIdx]
     : {}
 
@@ -322,21 +322,21 @@ const setupThree = () => {
   const yoffset = 1.5 * boxHeight;
   const ypad = boxHeight * 1.1;
   const zpad = boxHeight * 0.5;
-  let leftRight = 1;
-  let key = data.key;
+  const leftRight = 1;
+  const key = data.key;
   const xloc = -xoffset * leftRight;
   const yloc = -yoffset;
   const zloc = zpad;
-  // Use images resized to 512 for now 
+  // Use images resized to 512 for now
   const source = `/src/assets/images/${key}`
   // let xRotDir = leftRight;
-  let xRotDir = 0;
+  const xRotDir = 0;
   // targetX = -1
   // let targetZPos = -2.7
-  let initPhotoInstance = makeInstance(boxgeom, source, data,
+  const initPhotoInstance = makeInstance(boxgeom, source, data,
                                         0,
                                         2,
-                                        initInstaniceAnim1ZPosInit, 
+                                        initInstaniceAnim1ZPosInit,
                                         xRotDir)
   setInstancePositionTarget(initPhotoInstance, 'targetZPos', initInstaniceAnim1ZPosTarget)
   initInstanceAnim1 = true
@@ -346,13 +346,13 @@ const setupThree = () => {
   scene.add(initSceneInstances);
   setupPostprocessing()
   // tick = 0;
-  // Group for all sweater images  
+  // Group for all sweater images
 }
 
 const setupPostprocessing = () => {
 
-  let width = window.innerWidth;
-  let height = window.innerHeight;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
 
   const renderPass = new RenderPass(scene, camera)
   const bokehPass = new BokehPass(scene, camera, {
@@ -390,7 +390,7 @@ const animate = () => {
       // console.log(blueBox)
       // console.log('inanimate')
       // blueBox.rotation.y += .1
-      
+
     }
 
     // camera.position.z -= Z_SCROLL;
@@ -400,7 +400,7 @@ const animate = () => {
     // orbit.position.x = Math.cos(tick) * range;
     // orbit.position.y = Math.sin(tick) * range;
     // tick += 0.01;
-  // } 
+  // }
   animReqID = requestAnimationFrame(animate)
 }
 
@@ -415,11 +415,11 @@ const updateThree = () => {
 
 /**
  * Handles updates to gallery objects in 3d view
- * 
+ *
  * Currently handles:
  * - Making imgs rotate towards the camera on mouseover
- * 
- *  @param {Array} objArr    Array of THREE.js Object3Ds in gallery to update 
+ *
+ *  @param {Array} objArr    Array of THREE.js Object3Ds in gallery to update
  */
 const updateTopResultScene = () => {
   const speed = 0.05;
@@ -427,12 +427,12 @@ const updateTopResultScene = () => {
   if(initSceneInstances != null || initSceneInstances.children.length > 0) {
     initSceneInstances.children.forEach((obj) => {
         // const key = obj.userData.data.key;
-        let curYRot = obj.rotation.y
-        let curXPos = obj.position.x
-        let curZPos = obj.position.z
-        let targetYRot = obj.targetYRot
-        let targetXPos = obj.targetXPos
-        let targetZPos = obj.targetZPos
+        const curYRot = obj.rotation.y
+        const curXPos = obj.position.x
+        const curZPos = obj.position.z
+        const targetYRot = obj.targetYRot
+        const targetXPos = obj.targetXPos
+        const targetZPos = obj.targetZPos
         // Update current rotation w/lerp() if not close to target
         const lerp = (x, y, a) => x * (1 - a) + y * a;
         if(initInstanceAnim1 && obj.name === 'topListing') {
@@ -448,8 +448,8 @@ const updateTopResultScene = () => {
             obj.position.x = targetXPos
             initInstanceAnim2 = false;
           }
-        } 
-        
+        }
+
         const newYRot = lerp(curYRot, targetYRot, speed) ;
         const newXPos = lerp(curXPos, targetXPos, speed);
         const newZPos = lerp(curZPos, targetZPos, speed);
@@ -457,14 +457,14 @@ const updateTopResultScene = () => {
         obj.rotation.y = newYRot;
         obj.position.x = newXPos;
         obj.position.z = newZPos;
-        
+
       })
   }
 }
 
 const makeInstance = function (geom, img, data, x, y, z, xRotDir) {
   // console.log(renderer, threeReady.value)
-  if(!renderer ) return 
+  if(!renderer ) return
   console.log('makeInstance', img, data)
 
   const texture = new THREE.TextureLoader().load(img);
@@ -475,13 +475,13 @@ const makeInstance = function (geom, img, data, x, y, z, xRotDir) {
   });
   const obj = new THREE.Mesh(geom, imgmat);
   obj.userData = { ...data }
-  
-  const xRot = 60 * (Math.PI / 180); 
+
+  const xRot = 60 * (Math.PI / 180);
   const initYRot = xRot * xRotDir;
-  
+
   // Rotation and position values
   obj.initYRot = initYRot;
-  obj.targetYRot = initYRot; 
+  obj.targetYRot = initYRot;
   obj.initXPos = x;
   obj.targetXPos = x;
   obj.targetZPos = z;
@@ -513,16 +513,16 @@ const setInstancePositionTarget = (instance, axis, target) => {
           <v-row v-show='showMetadata' id='topInfoRow' class="pad-bot-2">
             <v-col id="titleDiv" :md="5" :lg="4" class="mr-auto">
               <h1>{{ topListing?.listingData?.brand }}</h1>
-              <h1>{{ displaySeasonYear }}</h1> 
+              <h1>{{ displaySeasonYear }}</h1>
               <!-- <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" style="transform: translate(-8%,11%);"/>  -->
-              <img id='qrCodeImg' v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code"/> 
+              <img id='qrCodeImg' v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code"/>
             </v-col>
             <v-col id='listingInfoDiv' :md="5" :lg="6" class="ml-auto pad-right-2">
               <span>
                 <h1>{{ topListing?.listingData?.item_name }}</h1>
                 <h1>{{ topListing?.listingData?.item_price }}</h1>
                 <h1>${{ topListing?.listingData?.item_price_usd_int }}</h1>
-                
+
               </span>
               <p style="white-space: pre-line">{{ topListing?.listingData?.item_description }}</p>
               </v-col>

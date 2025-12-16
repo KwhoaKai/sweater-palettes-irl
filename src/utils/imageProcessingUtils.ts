@@ -14,7 +14,7 @@ export function getMinDist(col: RGB, pal: RGB[]) {
   // Iterate through colors and save minimum distance
   for (let i = 0; i < pal.length; i++) {
     // let palColLab = diff.rgb_to_lab(pal[i]);
-    let colDiff = diff.diff(pal[i], col);
+    const colDiff = diff.diff(pal[i], col);
     minColDist = Math.min(colDiff, minColDist);
   }
   return minColDist;
@@ -30,31 +30,31 @@ export function getMinDist(col: RGB, pal: RGB[]) {
 export function getPalDist(pal1: RGB[], pal2: RGB[]): number {
   // console.log(pal1, pal2)
   const numCol = pal1.length
-  let pal1MinDists = []
-  let pal2MinDists = []
+  const pal1MinDists = []
+  const pal2MinDists = []
 
   // Get minimum distance for each color in both palettes
   for (let i = 0; i < numCol; i++) {
-    let pal1Col = pal1[i]
-    let minDist1 = getMinDist(pal1Col, pal2)
+    const pal1Col = pal1[i]
+    const minDist1 = getMinDist(pal1Col, pal2)
     pal1MinDists.push(minDist1);
 
-    let pal2Col = pal1[2]
-    let minDist2 = getMinDist(pal2Col, pal1);
+    const pal2Col = pal1[2]
+    const minDist2 = getMinDist(pal2Col, pal1);
     pal2MinDists.push(minDist2);
   }
-  let distSumPal1 = pal1MinDists.reduce((a, b) => {
+  const distSumPal1 = pal1MinDists.reduce((a, b) => {
     return a + b;
   });
 
-  let distSumPal2 = pal2MinDists.reduce((a, b) => {
+  const distSumPal2 = pal2MinDists.reduce((a, b) => {
     return a + b;
   });
 
   // Calculate MIDCP
-  let distAvgPal1 = distSumPal1 / numCol;
-  let distAvgPal2 = distSumPal2 / numCol;
-  let grandAvg = (distAvgPal1 + distAvgPal2) / 2;
+  const distAvgPal1 = distSumPal1 / numCol;
+  const distAvgPal2 = distSumPal2 / numCol;
+  const grandAvg = (distAvgPal1 + distAvgPal2) / 2;
   return grandAvg;
 }
 

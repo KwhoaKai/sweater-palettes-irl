@@ -45,16 +45,16 @@ const router = useRouter()
 const distMapUse = ref({})
 const userPaletteRgb = ref([])
 const webcamButtonText = ref('ENABLE WEBCAM')
-let startTransitionToNextScene = ref(false)
+const startTransitionToNextScene = ref(false)
 let lastTriggerTime = 0;
 const INTERVAL = 2000; // ms
 let lastVideoTime = -1
-let searchResultsReady = ref(false) // Starts transition to /selection
+const searchResultsReady = ref(false) // Starts transition to /selection
 const userInFrame = ref(false)
 const searchResultsReadyThreshold = 27
 const showStartGesture = ref(false)
 let animReqID: number | null = null;
-let startGestureInFrame = ref(false)
+const startGestureInFrame = ref(false)
 
 watch(startTransitionToNextScene, (newVal) => {
   if (newVal) {
@@ -204,7 +204,7 @@ const handleInteractionLoop = async () => {
       const data = imageData.data;
 
       // 4. Process mask
-      let uniqueMaskLabels = new Set(mask);
+      const uniqueMaskLabels = new Set(mask);
       userInFrame.value = uniqueMaskLabels.has(4);
 
       const colors = [
@@ -215,9 +215,9 @@ const handleInteractionLoop = async () => {
       ]
 
       // Show proportion of masked pixels from each label
-      let maskLabels = []
-      let maskPixels = []
-      let selectedMask = 4
+      const maskLabels = []
+      const maskPixels = []
+      const selectedMask = 4
 
       // Iterate over mask-classified pixels
       // white out non-masked pixels for embeddings
@@ -236,8 +236,8 @@ const handleInteractionLoop = async () => {
           data[pixelIndex + 3] = 255
         }
       }
-      let imgWidth = imageData.width;
-      let imgHeight = imageData.height;
+      const imgWidth = imageData.width;
+      const imgHeight = imageData.height;
       const rowLength = imgWidth * 4;
 
       for (let y = 0; y < imgHeight; y++) {
@@ -281,7 +281,7 @@ const handleInteractionLoop = async () => {
       useGestures = ['Victory', 'Open_Palm']
     ) {
       let results = null
-      let nowInMs = Date.now()
+      const nowInMs = Date.now()
       // Weird horizontal flip 
       ctx.setTransform(-1, 0, 0, 1, canvas.width, 0); 
 
@@ -343,7 +343,7 @@ const handleInteractionLoop = async () => {
       }
       const drawingUtils = new DrawingUtils(ctx)
       if (results?.landmarks != null) {
-        let curClass = results?.gestures?.[0]?.[0]?.categoryName ?? null
+        const curClass = results?.gestures?.[0]?.[0]?.categoryName ?? null
         // console.log(curClass)
         
         // if(curClass != 'Victory') {
@@ -384,8 +384,8 @@ const handleInteractionLoop = async () => {
       img.style.margin = '10px'
 
       // Color palette shit 
-      let v = new Vibrant(dataUrl);
-      let palette = await v.getPalette()
+      const v = new Vibrant(dataUrl);
+      const palette = await v.getPalette()
       const paletteArr = Object.values(palette)
                           .filter(swatch => swatch) // remove any null swatches
                           .sort((a, b) => b._population - a._population) // descending order
@@ -406,32 +406,32 @@ const handleInteractionLoop = async () => {
 
     // Draw image to canvas
     // Create <img> for color palette extraction if user has no palette and interval is met
-    let [shouldTrigger, newTime] = shouldRun(0, lastTriggerTime);
+    const [shouldTrigger, newTime] = shouldRun(0, lastTriggerTime);
     if (shouldTrigger) {
       lastTriggerTime = newTime;
     }
 
-    if ((!userPaletteRgb.values || userPaletteRgb.values.length === 0) && shouldTrigger) {      
+    if ((!userPaletteRgb.value.values || userPaletteRgb.value.values.length === 0) && shouldTrigger) {      
       // console.log(rgbPalettes);
       const rgbPalettes = await getUserPalette(ctx)
       userPaletteRgb.value = rgbPalettes
     }
 
     // Calculate cosine similarity
-    let imageData = ctx.getImageData(0, 0, width, height);
+    const imageData = ctx.getImageData(0, 0, width, height);
     const userVideoEmbedding = await imageEmbedder.embed(imageData)
     const userVideoEmbeddingFloatArr = userVideoEmbedding.embeddings[0].floatEmbedding
     curCamFrameEmbedding.value = userVideoEmbedding
     const imgKeys = Object.keys(imgEmbeddings)
     if(shouldTrigger && startGestureInFrame.value) {
       // Calculate palette and embedding similarities
-      let distMap = []
+      const distMap = []
       let palCtBad = 0
       let palCtGood = 0
-      let cats = new Set()
+      const cats = new Set()
       imgKeys.forEach((key) => {
-        let photoIdx = key.split('_').slice(-1)[0][0]
-        let category = key.split('_')[1]
+        const photoIdx = key.split('_').slice(-1)[0][0]
+        const category = key.split('_')[1]
         cats.add(category)
         // console.log(photoIdx, category)
         const listingCategories = ['tops']
@@ -447,8 +447,8 @@ const handleInteractionLoop = async () => {
           ) {
             const deQuantizedEmbedding = dequantizeEmbedding(imgEmbeddings[key]); // array of floats
             const similarityCosine = cosineSimilarity(userVideoEmbeddingFloatArr, deQuantizedEmbedding)
-            let imgPalette = palettesAndClusts[key]?.palette ?? null
-            let parsedImgPalette = JSON.parse(imgPalette)
+            const imgPalette = palettesAndClusts[key]?.palette ?? null
+            const parsedImgPalette = JSON.parse(imgPalette)
   
             // Return null if image doesn't have color palette
             const imgPaletteFormatted = imgPalette == null 
@@ -486,7 +486,7 @@ const handleInteractionLoop = async () => {
         nResults,
         curGesture
       ) {
-        let filteredDistMap = imageDict.filter(item => item.similarityColor != null)
+        const filteredDistMap = imageDict.filter(item => item.similarityColor != null)
         const ascending = curGesture === 'Victory'
         const firstSortField = sortMethodFirst === 'cosine' ? 'similarityCosine' : 'similarityColor';
         const secondSortField = sortMethodSecond === 'cosine' ? 'similarityCosine' : 'similarityColor';
@@ -494,14 +494,14 @@ const handleInteractionLoop = async () => {
         const sortByField = (arr, field, asc) => 
           arr.slice().sort((a, b) => asc ? a[field]! - b[field]! 
                                          : b[field]! - a[field]!)
-        let firstSortResults = sortByField(filteredDistMap, firstSortField, ascending)
-        let limitedDists = firstSortResults.slice(0, nResults)
-        let secondSortResults = sortByField(limitedDists, secondSortField, ascending)
+        const firstSortResults = sortByField(filteredDistMap, firstSortField, ascending)
+        const limitedDists = firstSortResults.slice(0, nResults)
+        const secondSortResults = sortByField(limitedDists, secondSortField, ascending)
         return secondSortResults
       }
   
-      let firstFilt = 'cosine'
-      let secondFilt = firstFilt == 'cosine' ? 'color' : 'cosine'
+      const firstFilt = 'cosine'
+      const secondFilt = firstFilt == 'cosine' ? 'color' : 'cosine'
       let finalImages = getFinalImages(distMap, firstFilt, secondFilt, 30, curGesture)
       searchResults.value.push(finalImages)
       if (searchResults.value.length > searchResultsReadyThreshold) {
