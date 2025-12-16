@@ -8,7 +8,7 @@ import { storeToRefs } from 'pinia'
 import { useIntroStore } from '@/stores/useIntroStore'
 import palettesAndClusts from '@/data/palette_clust.json'
 import imgMetaData from '@/data/metadata_processed.json'
-import personOutline from '@/assets/person_outline.svg';
+// import personOutline from '@/assets/person_outline.svg';
 import imgEmbeddings from '@/data/image_embeddings.json'
 import * as diff from "color-diff"
 import { Vibrant } from "node-vibrant/browser"

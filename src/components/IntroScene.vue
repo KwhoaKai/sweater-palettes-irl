@@ -9,7 +9,7 @@ import { getPalDist } from "@/utils/imageProcessingUtils"
 import { dequantizeEmbedding, cosineSimilarity } from "@/utils/embeddingProcessingUtils"
 import palettesAndClusts from '@/data/palette_clust.json'
 import imgMetaData from '@/data/metadata_processed.json'
-import personOutline from '@/assets/person_outline.svg';
+// import personOutline from '@/assets/person_outline.svg';
 import imgEmbeddings from '@/data/image_embeddings.json'
 import * as diff from "color-diff"
 import { Vibrant } from "node-vibrant/browser"
@@ -578,7 +578,7 @@ function shouldRun(interval: number, lastRunTime: number) {
     <v-row id="webcamRow">
       <div>
         <transition name="fade">
-        <span id="firstDirection" class="textDirections" :class="{ 'alpha-05': startGestureInFrame }">
+          <span id="firstDirection" class="textDirections" :class="{ 'alpha-05': startGestureInFrame }">
             <h1>Search Archive Store</h1>
             <p style="font-size: 2rem">
               Center yourself in frame and do this '✌️'
